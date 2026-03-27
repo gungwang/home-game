@@ -23,6 +23,8 @@ export default class MainScene extends Phaser.Scene {
   private isPaused: boolean = false;
   private youtubeVideos = ['dQw4w9WgXcQ', 'jNQXAC9IVRw', 'M7lc1UVf-VE'];
 
+  private videosWatched: number = 0;
+
   constructor() {
     super({ key: 'MainScene' });
   }
@@ -183,6 +185,11 @@ export default class MainScene extends Phaser.Scene {
       GameEvents.emit('score-changed', this.score);
       // Clean up the checkpoint building
       this.screenBuildings.clear(true, true);
+      
+      this.videosWatched++;
+      if (this.videosWatched >= 3) { // Game over after 3 checkpoints
+        GameEvents.emit('game-over');
+      }
     });
 
     // Collisions
