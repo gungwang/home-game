@@ -24,6 +24,7 @@ export default class MainScene extends Phaser.Scene {
   private youtubeVideos = ["2DXfUDiIcsY","4xTJ3BPCtMc","6ju5NziYYlc","-84Hc6ywY04","9yACrRUsQoo","bzHm7JM0MI4","C9HIAUHqU7A","CSxMRjyvnPU","DFY_w8XmWfY","ESA07F5rQLk","Fp7opQZ39ds","gGXxE9OYIaM","GlTyyTUjLv0","gq9Fz6H9zE0","hV4maRZYX6M","iEky-ldyPnU","JdwTJsRHodc","JTdhuyB_0fE","jX1TbV26XDc","lePl30G1DUA","lXQWSiJQTvM","qd_9ksHVApQ","rtdpDahE3Lw","S_8-Le7xdns","SAZuBkHg_mU","TS2GDGR__48","ugXdVO8Bb9o","vqLaAxZy14A","vRplaUoD1S0","WxyZaNN6xQ8","xv8599zXFvQ","zGKjoTmyNRU","zoKfzZ25htA","zOSVBpr3hB0","ZYqST2YHOHs"];
 
   private videosWatched: number = 0;
+  private bgmStarted: boolean = false;
 
   constructor() {
     super({ key: 'MainScene' });
@@ -187,6 +188,7 @@ export default class MainScene extends Phaser.Scene {
       
       this.isPaused = false;
       this.scene.resume();
+      GameEvents.emit('bgm-play'); // Resume BGM
       this.score += 50; // reward for watching video
       GameEvents.emit('score-changed', this.score);
       // Clean up the checkpoint building
@@ -216,13 +218,25 @@ export default class MainScene extends Phaser.Scene {
     this.physics.add.collider(this.dragon, this.buildings, this.handleBuildingHit as any, undefined, this);
 
     // Attacks
+    const startBgm = () => {
+      if (!this.bgmStarted) {
+        this.bgmStarted = true;
+        GameEvents.emit('bgm-play');
+      }
+    };
+
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      startBgm();
       if (pointer.rightButtonDown()) {
         this.fireMissile();
       } else {
         this.fireFireball();
       }
     });
+
+    if (this.input.keyboard) {
+      this.input.keyboard.on('keydown', startBgm);
+    }
 
     // Prevent default context menu on right click
     this.input.mouse?.disableContextMenu();
@@ -425,6 +439,7 @@ export default class MainScene extends Phaser.Scene {
         
         // Pause scene and show modal
         this.scene.pause();
+        GameEvents.emit('bgm-stop');
         GameEvents.emit('show-video', randomVideoId);
       }
       return true;
