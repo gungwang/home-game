@@ -14,7 +14,7 @@
 
 系统采用“网页 UI 壳 + 游戏画布”的混合架构，实现游戏体验与 Web 内容的无缝融合。
 
-*   **前端框架 (React/TypeScript):** 
+*   **前端框架 (React/TypeScript):**
     *   负责外层容器、主菜单、游戏内 UI 覆盖层（积分、生命值、弹药）、全屏播放 YouTube 视频的 Modal 遮罩，以及通关后的个人简历页面展示。
     *   管理全局游戏状态（总分、当前关卡、播放过的视频列表）。
 *   **游戏引擎 (Phaser 3):**
@@ -37,7 +37,7 @@
 
 1.  **场景滚动:** 背景（曼哈顿高楼群）向左滚动，神龙在屏幕左侧一定范围内自由移动射击前方涌来的妖怪。
 2.  **大楼交互:** 部分标志性大厦具有物理碰撞边界，神龙可以（或必须）穿过大楼的间隙/窗户，增加飞行操作技巧。
-3.  **通关节点 (Checkpoints):** 
+3.  **通关节点 (Checkpoints):**
     *   每飞行 3-5 分钟，场景停止滚动，到达一座特定的标志性大厦（作为本关终点）。
     *   大厦表面预留了一块巨大的纯色屏幕区域。
     *   游戏暂停，React 层在此区域上方精准覆盖一个 YouTube Iframe，播放随机挑选的 MV。
@@ -51,10 +51,11 @@
 
 ## 4. 关键技术实现路径
 
-1.  **YouTube API 集成:** 
+1.  **YouTube API 集成:**
     *   维护一个包含 100+ 视频 ID 的 JSON 列表。
     *   使用 `react-youtube` 库或官方 Iframe API，监听 `onStateChange` (播放结束 `0`)。
     *   通过绝对定位和 `z-index` 将播放器精准覆盖在 Phaser Canvas 渲染出的大楼屏幕区域上方。
+    *   youtube json files: /home/wang/projects/home-game-2/docs/youtube-json/
 2.  **Phaser 与 React 通信:**
     *   通过 EventEmitter 或直接的函数回调，让 Phaser 引擎在到达大楼时触发 React 显示视频。
     *   React 视频播放结束后，通知 Phaser 恢复游戏循环 (`scene.resume()`)。
