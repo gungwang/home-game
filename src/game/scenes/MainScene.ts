@@ -6,18 +6,24 @@ export default class MainScene extends Phaser.Scene {
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private fireballs!: Phaser.Physics.Arcade.Group;
   private missiles!: Phaser.Physics.Arcade.Group;
+  private enemyBullets!: Phaser.Physics.Arcade.Group;
+  
   private missileAmmo: number = 3;
   private score: number = 0;
+  private health: number = 100;
+  
   private enemies!: Phaser.Physics.Arcade.Group;
   private ammoCrates!: Phaser.Physics.Arcade.Group;
   private buildings!: Phaser.Physics.Arcade.Group;
+  
   private lastEnemySpawn: number = 0;
   private lastBuildingSpawn: number = 0;
+  
   private sky!: Phaser.GameObjects.TileSprite;
   private farBuildings!: Phaser.GameObjects.TileSprite;
   private nearBuildings!: Phaser.GameObjects.TileSprite;
-
   private screenBuildings!: Phaser.Physics.Arcade.Group;
+  
   private distanceTraveled: number = 0;
   private checkpointThreshold: number = 5000;
   private isPaused: boolean = false;
@@ -38,7 +44,7 @@ export default class MainScene extends Phaser.Scene {
     const width = this.sys.canvas.width;
     const height = this.sys.canvas.height;
 
-    // Create textures for backgrounds
+    // Background Textures
     const skyG = this.add.graphics();
     skyG.fillStyle(0x0a0a2a, 1);
     skyG.fillRect(0, 0, 100, height);
@@ -83,7 +89,7 @@ export default class MainScene extends Phaser.Scene {
 
     this.add.text(10, 10, 'Dragon Game Loaded', { color: '#0f0' }).setDepth(100);
 
-    // Dragon sprite placeholder (a simple colored rect mapped to a texture)
+    // Entity Textures
     const graphics = this.add.graphics();
     graphics.fillStyle(0x00ff00, 1);
     graphics.fillRect(0, 0, 40, 40);
@@ -101,6 +107,12 @@ export default class MainScene extends Phaser.Scene {
     missileGraphics.fillRect(0, 0, 25, 10);
     missileGraphics.generateTexture('missile', 25, 10);
     missileGraphics.destroy();
+    
+    const enemyBulletGraphics = this.add.graphics();
+    enemyBulletGraphics.fillStyle(0xffeb3b, 1);
+    enemyBulletGraphics.fillCircle(5, 5, 5);
+    enemyBulletGraphics.generateTexture('enemyBullet', 10, 10);
+    enemyBulletGraphics.destroy();
 
     const enemyGraphics = this.add.graphics();
     enemyGraphics.fillStyle(0xff00ff, 1);
@@ -130,6 +142,7 @@ export default class MainScene extends Phaser.Scene {
     screenBuildingG.generateTexture('screenBuilding', 400, 800);
     screenBuildingG.destroy();
 
+    // Init Player
     this.dragon = this.physics.add.sprite(100, 300, 'dragon');
     this.dragon.setCollideWorldBounds(true);
 
@@ -142,46 +155,19 @@ export default class MainScene extends Phaser.Scene {
       (this.cursors as any).D = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
     }
 
-    this.fireballs = this.physics.add.group({
-      classType: Phaser.Physics.Arcade.Sprite,
-      maxSize: -1,
-      runChildUpdate: true
-    });
+    // Init Groups
+    this.fireballs = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: -1, runChildUpdate: true });
+    this.missiles = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: -1, runChildUpdate: true });
+    this.enemyBullets = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: -1, runChildUpdate: true });
+    this.enemies = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: -1, runChildUpdate: true });
+    this.ammoCrates = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: -1, runChildUpdate: true });
+    
+    this.buildings = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, allowGravity: false, immovable: true });
+    this.screenBuildings = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, allowGravity: false, immovable: true });
 
-    this.missiles = this.physics.add.group({
-      classType: Phaser.Physics.Arcade.Sprite,
-      maxSize: -1,
-      runChildUpdate: true
-    });
-
-    this.enemies = this.physics.add.group({
-      classType: Phaser.Physics.Arcade.Sprite,
-      maxSize: -1,
-      runChildUpdate: true
-    });
-
-    this.ammoCrates = this.physics.add.group({
-      classType: Phaser.Physics.Arcade.Sprite,
-      maxSize: -1,
-      runChildUpdate: true
-    });
-
-    this.buildings = this.physics.add.group({
-      classType: Phaser.Physics.Arcade.Sprite,
-      allowGravity: false,
-      immovable: true
-    });
-
-    this.screenBuildings = this.physics.add.group({
-      classType: Phaser.Physics.Arcade.Sprite,
-      allowGravity: false,
-      immovable: true
-    });
-
-    // Clean up any lingering listeners from previous instance before creating a new one
+    // Clean up any lingering listeners
     GameEvents.off('video-complete');
     
-    // Event listener for returning from video
     const onVideoComplete = () => {
       // Ensure the scene hasn't been destroyed before attempting to resume
       if (!this.sys || !this.scene || !this.scene.manager) return;
@@ -189,26 +175,21 @@ export default class MainScene extends Phaser.Scene {
       this.isPaused = false;
       this.scene.resume();
       GameEvents.emit('bgm-play'); // Resume BGM
-      this.score += 50; // reward for watching video
+      
+      this.score += 50; 
       GameEvents.emit('score-changed', this.score);
-      // Clean up the checkpoint building
       this.screenBuildings.clear(true, true);
       
       this.videosWatched++;
-      if (this.videosWatched >= 3) { // Game over after 3 checkpoints
+      if (this.videosWatched >= 3) {
         GameEvents.emit('game-over');
       }
     };
     
     GameEvents.on('video-complete', onVideoComplete);
 
-    // Cleanup events when scene shuts down or restarts
-    this.events.on(Phaser.Scenes.Events.SHUTDOWN, () => {
-        GameEvents.off('video-complete', onVideoComplete);
-    });
-    this.events.on(Phaser.Scenes.Events.DESTROY, () => {
-        GameEvents.off('video-complete', onVideoComplete);
-    });
+    this.events.on(Phaser.Scenes.Events.SHUTDOWN, () => GameEvents.off('video-complete', onVideoComplete));
+    this.events.on(Phaser.Scenes.Events.DESTROY, () => GameEvents.off('video-complete', onVideoComplete));
 
     // Collisions
     this.physics.add.collider(this.fireballs, this.enemies, this.handleFireballHit as any, undefined, this);
@@ -216,8 +197,9 @@ export default class MainScene extends Phaser.Scene {
     this.physics.add.collider(this.dragon, this.enemies, this.handlePlayerHit as any, undefined, this);
     this.physics.add.overlap(this.dragon, this.ammoCrates, this.handleAmmoPickup as any, undefined, this);
     this.physics.add.collider(this.dragon, this.buildings, this.handleBuildingHit as any, undefined, this);
+    this.physics.add.collider(this.dragon, this.enemyBullets, this.handleEnemyBulletHit as any, undefined, this);
 
-    // Attacks
+    // Attacks & BGM
     const startBgm = () => {
       if (!this.bgmStarted) {
         this.bgmStarted = true;
@@ -238,29 +220,31 @@ export default class MainScene extends Phaser.Scene {
       this.input.keyboard.on('keydown', startBgm);
     }
 
-    // Prevent default context menu on right click
     this.input.mouse?.disableContextMenu();
     
-    // Initial emit
     GameEvents.emit('ammo-changed', this.missileAmmo);
+    GameEvents.emit('health-changed', this.health);
+  }
+
+  takeDamage(amount: number) {
+    this.health -= amount;
+    if (this.health <= 0) {
+      this.health = 0;
+      GameEvents.emit('game-over');
+    }
+    GameEvents.emit('health-changed', this.health);
+    
+    this.dragon.setTint(0xff0000);
+    this.time.delayedCall(100, () => this.dragon.clearTint());
   }
 
   fireFireball() {
     const fireball = this.fireballs.get(this.dragon.x + 20, this.dragon.y) as Phaser.Physics.Arcade.Sprite | null;
     if (fireball) {
-      fireball.setActive(true);
-      fireball.setVisible(true);
-      fireball.setTexture('fireball');
+      fireball.setActive(true).setVisible(true).setTexture('fireball');
       fireball.body?.setSize(15, 5);
-      
-      // We need to enable physics body explicitly if it was recycled
-      if (!fireball.body) {
-          this.physics.add.existing(fireball);
-      }
-      
+      if (!fireball.body) this.physics.add.existing(fireball);
       fireball.setVelocityX(600);
-      
-      // Auto destroy when out of bounds
       fireball.setCollideWorldBounds(false);
       fireball.setDepth(10);
     }
@@ -273,61 +257,49 @@ export default class MainScene extends Phaser.Scene {
       
       const missile = this.missiles.get(this.dragon.x + 20, this.dragon.y) as Phaser.Physics.Arcade.Sprite | null;
       if (missile) {
-        missile.setActive(true);
-        missile.setVisible(true);
-        missile.setTexture('missile');
+        missile.setActive(true).setVisible(true).setTexture('missile');
         missile.body?.setSize(25, 10);
-        
-        if (!missile.body) {
-            this.physics.add.existing(missile);
-        }
-        
+        if (!missile.body) this.physics.add.existing(missile);
         missile.setVelocityX(400);
       }
     }
   }
 
   handleFireballHit(fireball: Phaser.Physics.Arcade.Sprite, enemy: Phaser.Physics.Arcade.Sprite) {
-    fireball.setActive(false);
-    fireball.setVisible(false);
-    
-    // Simple 1 hit kill for now
+    fireball.setActive(false).setVisible(false);
     this.killEnemy(enemy);
   }
 
   handleMissileHit(missile: Phaser.Physics.Arcade.Sprite, enemy: Phaser.Physics.Arcade.Sprite) {
-    missile.setActive(false);
-    missile.setVisible(false);
-    
-    // Missiles can have AOE later, for now just kill
+    missile.setActive(false).setVisible(false);
     this.killEnemy(enemy);
   }
 
-  handlePlayerHit(dragon: Phaser.Physics.Arcade.Sprite, enemy: Phaser.Physics.Arcade.Sprite) {
-    // Player takes damage, flash red
-    dragon.setTint(0xff0000);
-    this.time.delayedCall(100, () => dragon.clearTint());
-    
-    enemy.setActive(false);
-    enemy.setVisible(false);
+  handlePlayerHit(_dragon: Phaser.Physics.Arcade.Sprite, enemy: Phaser.Physics.Arcade.Sprite) {
+    enemy.setActive(false).setVisible(false);
+    this.takeDamage(20); // Massive damage for body hit
+  }
+
+  handleEnemyBulletHit(_dragon: Phaser.Physics.Arcade.Sprite, bullet: Phaser.Physics.Arcade.Sprite) {
+    bullet.setActive(false).setVisible(false);
+    this.takeDamage(10); // Standard damage for bullet hit
+  }
+
+  handleBuildingHit(_dragon: Phaser.Physics.Arcade.Sprite, _building: Phaser.Physics.Arcade.Sprite) {
+    this.takeDamage(5); // Bump damage
   }
 
   handleAmmoPickup(_dragon: Phaser.Physics.Arcade.Sprite, crate: Phaser.Physics.Arcade.Sprite) {
-    crate.setActive(false);
-    crate.setVisible(false);
-    
+    crate.setActive(false).setVisible(false);
     this.missileAmmo += 3;
     GameEvents.emit('ammo-changed', this.missileAmmo);
   }
 
   killEnemy(enemy: Phaser.Physics.Arcade.Sprite) {
-    enemy.setActive(false);
-    enemy.setVisible(false);
-    
+    enemy.setActive(false).setVisible(false);
     this.score += 10;
     GameEvents.emit('score-changed', this.score);
     
-    // 20% chance to drop ammo
     if (Math.random() < 0.2) {
       this.spawnAmmoCrate(enemy.x, enemy.y);
     }
@@ -336,61 +308,42 @@ export default class MainScene extends Phaser.Scene {
   spawnAmmoCrate(x: number, y: number) {
     const crate = this.ammoCrates.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
     if (crate) {
-      crate.setActive(true);
-      crate.setVisible(true);
-      crate.setTexture('ammoCrate');
-      
-      if (!crate.body) {
-        this.physics.add.existing(crate);
-      }
-      
-      crate.setVelocityX(-100); // moves left slowly
+      crate.setActive(true).setVisible(true).setTexture('ammoCrate');
+      if (!crate.body) this.physics.add.existing(crate);
+      crate.setVelocityX(-100);
     }
   }
 
   spawnEnemy() {
     const y = Phaser.Math.Between(50, this.sys.canvas.height - 50);
     const x = this.sys.canvas.width + 50;
-    
     const enemy = this.enemies.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
+    
     if (enemy) {
-      enemy.setActive(true);
-      enemy.setVisible(true);
-      enemy.setTexture('enemy');
-      
-      if (!enemy.body) {
-        this.physics.add.existing(enemy);
-      }
-      
+      enemy.setActive(true).setVisible(true).setTexture('enemy');
+      if (!enemy.body) this.physics.add.existing(enemy);
       enemy.setVelocityX(Phaser.Math.Between(-150, -300));
+      // Store next shot time
+      enemy.setData('nextShot', this.time.now + Phaser.Math.Between(1000, 3000));
     }
   }
 
-  handleBuildingHit(dragon: Phaser.Physics.Arcade.Sprite, _building: Phaser.Physics.Arcade.Sprite) {
-    // Player hit a building, take damage or bounce
-    dragon.setTint(0xff0000);
-    this.time.delayedCall(100, () => dragon.clearTint());
+  spawnEnemyBullet(x: number, y: number) {
+    const bullet = this.enemyBullets.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
+    if (bullet) {
+      bullet.setActive(true).setVisible(true).setTexture('enemyBullet');
+      if (!bullet.body) this.physics.add.existing(bullet);
+      bullet.body?.setSize(10, 10);
+      bullet.setVelocityX(-400); // Shoot left
+    }
   }
 
   spawnBuilding() {
-    const gapSize = 150;
-    const gapPosition = Phaser.Math.Between(100, this.sys.canvas.height - gapSize - 100);
+    const bottomHeight = Phaser.Math.Between(100, this.sys.canvas.height - 100);
     const x = this.sys.canvas.width + 50;
 
-    // Top building
-    const topBuilding = this.buildings.get(x, gapPosition / 2) as Phaser.Physics.Arcade.Sprite | null;
-    if (topBuilding) {
-      topBuilding.setActive(true).setVisible(true).setTexture('buildingTexture');
-      if (!topBuilding.body) this.physics.add.existing(topBuilding);
-      topBuilding.body?.setSize(80, gapPosition);
-      topBuilding.setDisplaySize(80, gapPosition);
-      (topBuilding.body as Phaser.Physics.Arcade.Body).setImmovable(true);
-      topBuilding.setVelocityX(-100);
-    }
-
-    // Bottom building
-    const bottomHeight = this.sys.canvas.height - gapPosition - gapSize;
-    const bottomBuilding = this.buildings.get(x, gapPosition + gapSize + bottomHeight / 2) as Phaser.Physics.Arcade.Sprite | null;
+    // Only spawn the bottom building as requested
+    const bottomBuilding = this.buildings.get(x, this.sys.canvas.height - bottomHeight / 2) as Phaser.Physics.Arcade.Sprite | null;
     if (bottomBuilding) {
       bottomBuilding.setActive(true).setVisible(true).setTexture('buildingTexture');
       if (!bottomBuilding.body) this.physics.add.existing(bottomBuilding);
@@ -410,34 +363,29 @@ export default class MainScene extends Phaser.Scene {
       if (!screenBuilding.body) this.physics.add.existing(screenBuilding);
       (screenBuilding.body as Phaser.Physics.Arcade.Body).setImmovable(true);
       screenBuilding.setVelocityX(-100);
-      screenBuilding.setDepth(-1); // Behind dragon
+      screenBuilding.setDepth(-1); 
     }
   }
 
   update(time: number, _delta: number) {
     if (this.isPaused) return;
 
-    // Advance distance
     this.distanceTraveled += 1;
     
-    // Check for checkpoint spawn
     if (this.distanceTraveled > this.checkpointThreshold) {
-       this.distanceTraveled = 0; // reset
+       this.distanceTraveled = 0; 
        this.spawnCheckpoint();
     }
 
-    // Check if checkpoint building reached center
+    // Checkpoint interaction
     this.screenBuildings.children.each((sb) => {
       const sprite = sb as Phaser.Physics.Arcade.Sprite;
       if (sprite.active && sprite.x <= this.sys.canvas.width / 2) {
-        sprite.setVelocityX(0); // stop it
+        sprite.setVelocityX(0);
         this.isPaused = true;
-        this.dragon.setVelocity(0); // stop dragon
+        this.dragon.setVelocity(0);
         
-        // Pick random video
         const randomVideoId = this.youtubeVideos[Phaser.Math.Between(0, this.youtubeVideos.length - 1)];
-        
-        // Pause scene and show modal
         this.scene.pause();
         GameEvents.emit('bgm-stop');
         GameEvents.emit('show-video', randomVideoId);
@@ -451,7 +399,7 @@ export default class MainScene extends Phaser.Scene {
     this.nearBuildings.tilePositionX += 2;
 
     // Movement
-    const speed = 300;
+    const speed = 400;
     this.dragon.setVelocity(0);
 
     if (this.cursors.left?.isDown || (this.cursors as any).A?.isDown) {
@@ -476,50 +424,39 @@ export default class MainScene extends Phaser.Scene {
         this.lastBuildingSpawn = time + Phaser.Math.Between(3000, 6000);
     }
 
-    // Cleanup offscreen projectiles
-    this.fireballs.children.each((fb) => {
-        const sprite = fb as Phaser.Physics.Arcade.Sprite;
-        if (sprite.active && sprite.x > this.sys.canvas.width) {
-            sprite.setActive(false);
-            sprite.setVisible(false);
-        }
-        return true;
-    });
-    
-    this.missiles.children.each((m) => {
-        const sprite = m as Phaser.Physics.Arcade.Sprite;
-        if (sprite.active && sprite.x > this.sys.canvas.width) {
-            sprite.setActive(false);
-            sprite.setVisible(false);
-        }
-        return true;
-    });
-
+    // Enemy shooting logic
     this.enemies.children.each((e) => {
         const sprite = e as Phaser.Physics.Arcade.Sprite;
+        if (sprite.active && sprite.x < this.sys.canvas.width && sprite.x > 0) {
+            const nextShot = sprite.getData('nextShot');
+            if (time > nextShot) {
+                this.spawnEnemyBullet(sprite.x, sprite.y);
+                sprite.setData('nextShot', time + Phaser.Math.Between(2000, 5000));
+            }
+        }
         if (sprite.active && sprite.x < -50) {
-            sprite.setActive(false);
-            sprite.setVisible(false);
+            sprite.setActive(false).setVisible(false);
         }
         return true;
     });
 
-    this.ammoCrates.children.each((a) => {
-        const sprite = a as Phaser.Physics.Arcade.Sprite;
-        if (sprite.active && sprite.x < -50) {
-            sprite.setActive(false);
-            sprite.setVisible(false);
-        }
-        return true;
-    });
+    // Cleanups
+    const cleanOffscreen = (group: Phaser.Physics.Arcade.Group, boundary: number, checkRight: boolean = false) => {
+      group.children.each((item) => {
+          const sprite = item as Phaser.Physics.Arcade.Sprite;
+          if (sprite.active) {
+              if (checkRight ? sprite.x > boundary : sprite.x < boundary) {
+                  sprite.setActive(false).setVisible(false);
+              }
+          }
+          return true;
+      });
+    }
 
-    this.buildings.children.each((b) => {
-        const sprite = b as Phaser.Physics.Arcade.Sprite;
-        if (sprite.active && sprite.x < -100) {
-            sprite.setActive(false);
-            sprite.setVisible(false);
-        }
-        return true;
-    });
+    cleanOffscreen(this.fireballs, this.sys.canvas.width + 50, true);
+    cleanOffscreen(this.missiles, this.sys.canvas.width + 50, true);
+    cleanOffscreen(this.enemyBullets, -50, false);
+    cleanOffscreen(this.ammoCrates, -50, false);
+    cleanOffscreen(this.buildings, -100, false);
   }
 }
