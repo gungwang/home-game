@@ -241,7 +241,8 @@ export default class MainScene extends Phaser.Scene {
   fireFireball() {
     const fireball = this.fireballs.get(this.dragon.x + 20, this.dragon.y) as Phaser.Physics.Arcade.Sprite | null;
     if (fireball) {
-      fireball.setActive(true).setVisible(true).setTexture('fireball');
+      fireball.enableBody(true, this.dragon.x + 20, this.dragon.y, true, true);
+      fireball.setTexture('fireball');
       fireball.body?.setSize(15, 5);
       if (!fireball.body) this.physics.add.existing(fireball);
       fireball.setVelocityX(600);
@@ -257,7 +258,8 @@ export default class MainScene extends Phaser.Scene {
       
       const missile = this.missiles.get(this.dragon.x + 20, this.dragon.y) as Phaser.Physics.Arcade.Sprite | null;
       if (missile) {
-        missile.setActive(true).setVisible(true).setTexture('missile');
+        missile.enableBody(true, this.dragon.x + 20, this.dragon.y, true, true);
+        missile.setTexture('missile');
         missile.body?.setSize(25, 10);
         if (!missile.body) this.physics.add.existing(missile);
         missile.setVelocityX(400);
@@ -266,22 +268,22 @@ export default class MainScene extends Phaser.Scene {
   }
 
   handleFireballHit(fireball: Phaser.Physics.Arcade.Sprite, enemy: Phaser.Physics.Arcade.Sprite) {
-    fireball.setActive(false).setVisible(false);
+    fireball.disableBody(true, true);
     this.killEnemy(enemy);
   }
 
   handleMissileHit(missile: Phaser.Physics.Arcade.Sprite, enemy: Phaser.Physics.Arcade.Sprite) {
-    missile.setActive(false).setVisible(false);
+    missile.disableBody(true, true);
     this.killEnemy(enemy);
   }
 
   handlePlayerHit(_dragon: Phaser.Physics.Arcade.Sprite, enemy: Phaser.Physics.Arcade.Sprite) {
-    enemy.setActive(false).setVisible(false);
+    enemy.disableBody(true, true);
     this.takeDamage(20); // Massive damage for body hit
   }
 
   handleEnemyBulletHit(_dragon: Phaser.Physics.Arcade.Sprite, bullet: Phaser.Physics.Arcade.Sprite) {
-    bullet.setActive(false).setVisible(false);
+    bullet.disableBody(true, true);
     this.takeDamage(10); // Standard damage for bullet hit
   }
 
@@ -290,13 +292,13 @@ export default class MainScene extends Phaser.Scene {
   }
 
   handleAmmoPickup(_dragon: Phaser.Physics.Arcade.Sprite, crate: Phaser.Physics.Arcade.Sprite) {
-    crate.setActive(false).setVisible(false);
+    crate.disableBody(true, true);
     this.missileAmmo += 3;
     GameEvents.emit('ammo-changed', this.missileAmmo);
   }
 
   killEnemy(enemy: Phaser.Physics.Arcade.Sprite) {
-    enemy.setActive(false).setVisible(false);
+    enemy.disableBody(true, true);
     this.score += 10;
     GameEvents.emit('score-changed', this.score);
     
@@ -308,7 +310,8 @@ export default class MainScene extends Phaser.Scene {
   spawnAmmoCrate(x: number, y: number) {
     const crate = this.ammoCrates.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
     if (crate) {
-      crate.setActive(true).setVisible(true).setTexture('ammoCrate');
+      crate.enableBody(true, x, y, true, true);
+      crate.setTexture('ammoCrate');
       if (!crate.body) this.physics.add.existing(crate);
       crate.setVelocityX(-100);
     }
@@ -320,7 +323,8 @@ export default class MainScene extends Phaser.Scene {
     const enemy = this.enemies.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
     
     if (enemy) {
-      enemy.setActive(true).setVisible(true).setTexture('enemy');
+      enemy.enableBody(true, x, y, true, true);
+      enemy.setTexture('enemy');
       if (!enemy.body) this.physics.add.existing(enemy);
       enemy.setVelocityX(Phaser.Math.Between(-150, -300));
       // Store next shot time
@@ -331,7 +335,8 @@ export default class MainScene extends Phaser.Scene {
   spawnEnemyBullet(x: number, y: number) {
     const bullet = this.enemyBullets.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
     if (bullet) {
-      bullet.setActive(true).setVisible(true).setTexture('enemyBullet');
+      bullet.enableBody(true, x, y, true, true);
+      bullet.setTexture('enemyBullet');
       if (!bullet.body) this.physics.add.existing(bullet);
       bullet.body?.setSize(10, 10);
       bullet.setVelocityX(-400); // Shoot left
@@ -343,9 +348,11 @@ export default class MainScene extends Phaser.Scene {
     const x = this.sys.canvas.width + 50;
 
     // Only spawn the bottom building as requested
-    const bottomBuilding = this.buildings.get(x, this.sys.canvas.height - bottomHeight / 2) as Phaser.Physics.Arcade.Sprite | null;
+    const y = this.sys.canvas.height - bottomHeight / 2;
+    const bottomBuilding = this.buildings.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
     if (bottomBuilding) {
-      bottomBuilding.setActive(true).setVisible(true).setTexture('buildingTexture');
+      bottomBuilding.enableBody(true, x, y, true, true);
+      bottomBuilding.setTexture('buildingTexture');
       if (!bottomBuilding.body) this.physics.add.existing(bottomBuilding);
       bottomBuilding.body?.setSize(80, bottomHeight);
       bottomBuilding.setDisplaySize(80, bottomHeight);
@@ -359,7 +366,8 @@ export default class MainScene extends Phaser.Scene {
     const y = this.sys.canvas.height / 2;
     const screenBuilding = this.screenBuildings.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
     if (screenBuilding) {
-      screenBuilding.setActive(true).setVisible(true).setTexture('screenBuilding');
+      screenBuilding.enableBody(true, x, y, true, true);
+      screenBuilding.setTexture('screenBuilding');
       if (!screenBuilding.body) this.physics.add.existing(screenBuilding);
       (screenBuilding.body as Phaser.Physics.Arcade.Body).setImmovable(true);
       screenBuilding.setVelocityX(-100);
@@ -435,7 +443,7 @@ export default class MainScene extends Phaser.Scene {
             }
         }
         if (sprite.active && sprite.x < -50) {
-            sprite.setActive(false).setVisible(false);
+            sprite.disableBody(true, true);
         }
         return true;
     });
@@ -446,7 +454,7 @@ export default class MainScene extends Phaser.Scene {
           const sprite = item as Phaser.Physics.Arcade.Sprite;
           if (sprite.active) {
               if (checkRight ? sprite.x > boundary : sprite.x < boundary) {
-                  sprite.setActive(false).setVisible(false);
+                  sprite.disableBody(true, true);
               }
           }
           return true;
