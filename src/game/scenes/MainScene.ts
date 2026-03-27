@@ -10,7 +10,12 @@ export default class MainScene extends Phaser.Scene {
   private score: number = 0;
   private enemies!: Phaser.Physics.Arcade.Group;
   private ammoCrates!: Phaser.Physics.Arcade.Group;
+  private buildings!: Phaser.Physics.Arcade.Group;
   private lastEnemySpawn: number = 0;
+  private lastBuildingSpawn: number = 0;
+  private sky!: Phaser.GameObjects.TileSprite;
+  private farBuildings!: Phaser.GameObjects.TileSprite;
+  private nearBuildings!: Phaser.GameObjects.TileSprite;
 
   constructor() {
     super({ key: 'MainScene' });
@@ -21,7 +26,53 @@ export default class MainScene extends Phaser.Scene {
   }
 
   create() {
-    this.add.text(10, 10, 'Dragon Game Loaded', { color: '#0f0' });
+    const width = this.sys.canvas.width;
+    const height = this.sys.canvas.height;
+
+    // Create textures for backgrounds
+    const skyG = this.add.graphics();
+    skyG.fillStyle(0x0a0a2a, 1);
+    skyG.fillRect(0, 0, 100, height);
+    skyG.generateTexture('sky', 100, height);
+    skyG.destroy();
+
+    const farG = this.add.graphics();
+    farG.fillStyle(0x1a1a4a, 1);
+    farG.fillRect(0, height - 200, 200, 200);
+    farG.fillRect(200, height - 300, 100, 300);
+    farG.generateTexture('farBg', 400, height);
+    farG.destroy();
+
+    const nearG = this.add.graphics();
+    nearG.fillStyle(0x2a2a6a, 1);
+    nearG.fillRect(0, height - 100, 150, 100);
+    nearG.fillRect(150, height - 150, 100, 150);
+    nearG.generateTexture('nearBg', 300, height);
+    nearG.destroy();
+
+    this.sky = this.add.tileSprite(width / 2, height / 2, width, height, 'sky');
+    this.farBuildings = this.add.tileSprite(width / 2, height / 2, width, height, 'farBg');
+    this.nearBuildings = this.add.tileSprite(width / 2, height / 2, width, height, 'nearBg');
+
+    // Weather Particles (Rain)
+    const rainG = this.add.graphics();
+    rainG.fillStyle(0x00ffff, 0.5);
+    rainG.fillRect(0, 0, 2, 10);
+    rainG.generateTexture('rainParticle', 2, 10);
+    rainG.destroy();
+
+    this.add.particles(0, 0, 'rainParticle', {
+      x: { min: 0, max: width },
+      y: 0,
+      lifespan: 1500,
+      speedY: { min: 300, max: 500 },
+      speedX: -100,
+      scale: { start: 1, end: 0 },
+      quantity: 2,
+      blendMode: 'ADD'
+    });
+
+    this.add.text(10, 10, 'Dragon Game Loaded', { color: '#0f0' }).setDepth(100);
 
     // Dragon sprite placeholder (a simple colored rect mapped to a texture)
     const graphics = this.add.graphics();
@@ -53,6 +104,14 @@ export default class MainScene extends Phaser.Scene {
     ammoCrateGraphics.fillRect(0, 0, 20, 20);
     ammoCrateGraphics.generateTexture('ammoCrate', 20, 20);
     ammoCrateGraphics.destroy();
+
+    const buildingG = this.add.graphics();
+    buildingG.fillStyle(0x333333, 1);
+    buildingG.lineStyle(2, 0x00ffff, 1);
+    buildingG.fillRect(0, 0, 80, 800);
+    buildingG.strokeRect(0, 0, 80, 800);
+    buildingG.generateTexture('buildingTexture', 80, 800);
+    buildingG.destroy();
 
     this.dragon = this.physics.add.sprite(100, 300, 'dragon');
     this.dragon.setCollideWorldBounds(true);
@@ -90,11 +149,18 @@ export default class MainScene extends Phaser.Scene {
       runChildUpdate: true
     });
 
+    this.buildings = this.physics.add.group({
+      classType: Phaser.Physics.Arcade.Sprite,
+      allowGravity: false,
+      immovable: true
+    });
+
     // Collisions
     this.physics.add.collider(this.fireballs, this.enemies, this.handleFireballHit as any, undefined, this);
     this.physics.add.collider(this.missiles, this.enemies, this.handleMissileHit as any, undefined, this);
     this.physics.add.collider(this.dragon, this.enemies, this.handlePlayerHit as any, undefined, this);
     this.physics.add.overlap(this.dragon, this.ammoCrates, this.handleAmmoPickup as any, undefined, this);
+    this.physics.add.collider(this.dragon, this.buildings, this.handleBuildingHit as any, undefined, this);
 
     // Attacks
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
@@ -233,7 +299,47 @@ export default class MainScene extends Phaser.Scene {
     }
   }
 
+  handleBuildingHit(dragon: Phaser.Physics.Arcade.Sprite, _building: Phaser.Physics.Arcade.Sprite) {
+    // Player hit a building, take damage or bounce
+    dragon.setTint(0xff0000);
+    this.time.delayedCall(100, () => dragon.clearTint());
+  }
+
+  spawnBuilding() {
+    const gapSize = 150;
+    const gapPosition = Phaser.Math.Between(100, this.sys.canvas.height - gapSize - 100);
+    const x = this.sys.canvas.width + 50;
+
+    // Top building
+    const topBuilding = this.buildings.get(x, gapPosition / 2) as Phaser.Physics.Arcade.Sprite | null;
+    if (topBuilding) {
+      topBuilding.setActive(true).setVisible(true).setTexture('buildingTexture');
+      if (!topBuilding.body) this.physics.add.existing(topBuilding);
+      topBuilding.body?.setSize(80, gapPosition);
+      topBuilding.setDisplaySize(80, gapPosition);
+      (topBuilding.body as Phaser.Physics.Arcade.Body).setImmovable(true);
+      topBuilding.setVelocityX(-100);
+    }
+
+    // Bottom building
+    const bottomHeight = this.sys.canvas.height - gapPosition - gapSize;
+    const bottomBuilding = this.buildings.get(x, gapPosition + gapSize + bottomHeight / 2) as Phaser.Physics.Arcade.Sprite | null;
+    if (bottomBuilding) {
+      bottomBuilding.setActive(true).setVisible(true).setTexture('buildingTexture');
+      if (!bottomBuilding.body) this.physics.add.existing(bottomBuilding);
+      bottomBuilding.body?.setSize(80, bottomHeight);
+      bottomBuilding.setDisplaySize(80, bottomHeight);
+      (bottomBuilding.body as Phaser.Physics.Arcade.Body).setImmovable(true);
+      bottomBuilding.setVelocityX(-100);
+    }
+  }
+
   update(time: number, _delta: number) {
+    // Parallax scrolling
+    this.sky.tilePositionX += 0.5;
+    this.farBuildings.tilePositionX += 1;
+    this.nearBuildings.tilePositionX += 2;
+
     // Movement
     const speed = 300;
     this.dragon.setVelocity(0);
@@ -253,6 +359,11 @@ export default class MainScene extends Phaser.Scene {
     if (time > this.lastEnemySpawn) {
         this.spawnEnemy();
         this.lastEnemySpawn = time + Phaser.Math.Between(1000, 3000);
+    }
+
+    if (time > this.lastBuildingSpawn) {
+        this.spawnBuilding();
+        this.lastBuildingSpawn = time + Phaser.Math.Between(3000, 6000);
     }
 
     // Cleanup offscreen projectiles
@@ -286,6 +397,15 @@ export default class MainScene extends Phaser.Scene {
     this.ammoCrates.children.each((a) => {
         const sprite = a as Phaser.Physics.Arcade.Sprite;
         if (sprite.active && sprite.x < -50) {
+            sprite.setActive(false);
+            sprite.setVisible(false);
+        }
+        return true;
+    });
+
+    this.buildings.children.each((b) => {
+        const sprite = b as Phaser.Physics.Arcade.Sprite;
+        if (sprite.active && sprite.x < -100) {
             sprite.setActive(false);
             sprite.setVisible(false);
         }
