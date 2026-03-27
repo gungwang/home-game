@@ -7,6 +7,10 @@ export default class MainScene extends Phaser.Scene {
   private fireballs!: Phaser.Physics.Arcade.Group;
   private missiles!: Phaser.Physics.Arcade.Group;
   private missileAmmo: number = 3;
+  private score: number = 0;
+  private enemies!: Phaser.Physics.Arcade.Group;
+  private ammoCrates!: Phaser.Physics.Arcade.Group;
+  private lastEnemySpawn: number = 0;
 
   constructor() {
     super({ key: 'MainScene' });
@@ -38,6 +42,18 @@ export default class MainScene extends Phaser.Scene {
     missileGraphics.generateTexture('missile', 25, 10);
     missileGraphics.destroy();
 
+    const enemyGraphics = this.add.graphics();
+    enemyGraphics.fillStyle(0xff00ff, 1);
+    enemyGraphics.fillRect(0, 0, 30, 30);
+    enemyGraphics.generateTexture('enemy', 30, 30);
+    enemyGraphics.destroy();
+
+    const ammoCrateGraphics = this.add.graphics();
+    ammoCrateGraphics.fillStyle(0x00ffff, 1);
+    ammoCrateGraphics.fillRect(0, 0, 20, 20);
+    ammoCrateGraphics.generateTexture('ammoCrate', 20, 20);
+    ammoCrateGraphics.destroy();
+
     this.dragon = this.physics.add.sprite(100, 300, 'dragon');
     this.dragon.setCollideWorldBounds(true);
 
@@ -61,6 +77,24 @@ export default class MainScene extends Phaser.Scene {
       maxSize: -1,
       runChildUpdate: true
     });
+
+    this.enemies = this.physics.add.group({
+      classType: Phaser.Physics.Arcade.Sprite,
+      maxSize: -1,
+      runChildUpdate: true
+    });
+
+    this.ammoCrates = this.physics.add.group({
+      classType: Phaser.Physics.Arcade.Sprite,
+      maxSize: -1,
+      runChildUpdate: true
+    });
+
+    // Collisions
+    this.physics.add.collider(this.fireballs, this.enemies, this.handleFireballHit as any, undefined, this);
+    this.physics.add.collider(this.missiles, this.enemies, this.handleMissileHit as any, undefined, this);
+    this.physics.add.collider(this.dragon, this.enemies, this.handlePlayerHit as any, undefined, this);
+    this.physics.add.overlap(this.dragon, this.ammoCrates, this.handleAmmoPickup as any, undefined, this);
 
     // Attacks
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
@@ -120,7 +154,86 @@ export default class MainScene extends Phaser.Scene {
     }
   }
 
-  update() {
+  handleFireballHit(fireball: Phaser.Physics.Arcade.Sprite, enemy: Phaser.Physics.Arcade.Sprite) {
+    fireball.setActive(false);
+    fireball.setVisible(false);
+    
+    // Simple 1 hit kill for now
+    this.killEnemy(enemy);
+  }
+
+  handleMissileHit(missile: Phaser.Physics.Arcade.Sprite, enemy: Phaser.Physics.Arcade.Sprite) {
+    missile.setActive(false);
+    missile.setVisible(false);
+    
+    // Missiles can have AOE later, for now just kill
+    this.killEnemy(enemy);
+  }
+
+  handlePlayerHit(dragon: Phaser.Physics.Arcade.Sprite, enemy: Phaser.Physics.Arcade.Sprite) {
+    // Player takes damage, flash red
+    dragon.setTint(0xff0000);
+    this.time.delayedCall(100, () => dragon.clearTint());
+    
+    enemy.setActive(false);
+    enemy.setVisible(false);
+  }
+
+  handleAmmoPickup(_dragon: Phaser.Physics.Arcade.Sprite, crate: Phaser.Physics.Arcade.Sprite) {
+    crate.setActive(false);
+    crate.setVisible(false);
+    
+    this.missileAmmo += 3;
+    GameEvents.emit('ammo-changed', this.missileAmmo);
+  }
+
+  killEnemy(enemy: Phaser.Physics.Arcade.Sprite) {
+    enemy.setActive(false);
+    enemy.setVisible(false);
+    
+    this.score += 10;
+    GameEvents.emit('score-changed', this.score);
+    
+    // 20% chance to drop ammo
+    if (Math.random() < 0.2) {
+      this.spawnAmmoCrate(enemy.x, enemy.y);
+    }
+  }
+
+  spawnAmmoCrate(x: number, y: number) {
+    const crate = this.ammoCrates.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
+    if (crate) {
+      crate.setActive(true);
+      crate.setVisible(true);
+      crate.setTexture('ammoCrate');
+      
+      if (!crate.body) {
+        this.physics.add.existing(crate);
+      }
+      
+      crate.setVelocityX(-100); // moves left slowly
+    }
+  }
+
+  spawnEnemy() {
+    const y = Phaser.Math.Between(50, this.sys.canvas.height - 50);
+    const x = this.sys.canvas.width + 50;
+    
+    const enemy = this.enemies.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
+    if (enemy) {
+      enemy.setActive(true);
+      enemy.setVisible(true);
+      enemy.setTexture('enemy');
+      
+      if (!enemy.body) {
+        this.physics.add.existing(enemy);
+      }
+      
+      enemy.setVelocityX(Phaser.Math.Between(-150, -300));
+    }
+  }
+
+  update(time: number, _delta: number) {
     // Movement
     const speed = 300;
     this.dragon.setVelocity(0);
@@ -137,6 +250,11 @@ export default class MainScene extends Phaser.Scene {
       this.dragon.setVelocityY(speed);
     }
 
+    if (time > this.lastEnemySpawn) {
+        this.spawnEnemy();
+        this.lastEnemySpawn = time + Phaser.Math.Between(1000, 3000);
+    }
+
     // Cleanup offscreen projectiles
     this.fireballs.children.each((fb) => {
         const sprite = fb as Phaser.Physics.Arcade.Sprite;
@@ -150,6 +268,24 @@ export default class MainScene extends Phaser.Scene {
     this.missiles.children.each((m) => {
         const sprite = m as Phaser.Physics.Arcade.Sprite;
         if (sprite.active && sprite.x > this.sys.canvas.width) {
+            sprite.setActive(false);
+            sprite.setVisible(false);
+        }
+        return true;
+    });
+
+    this.enemies.children.each((e) => {
+        const sprite = e as Phaser.Physics.Arcade.Sprite;
+        if (sprite.active && sprite.x < -50) {
+            sprite.setActive(false);
+            sprite.setVisible(false);
+        }
+        return true;
+    });
+
+    this.ammoCrates.children.each((a) => {
+        const sprite = a as Phaser.Physics.Arcade.Sprite;
+        if (sprite.active && sprite.x < -50) {
             sprite.setActive(false);
             sprite.setVisible(false);
         }
