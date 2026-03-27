@@ -7,76 +7,110 @@ export default class MainScene extends Phaser.Scene {
   private fireballs!: Phaser.Physics.Arcade.Group;
   private missiles!: Phaser.Physics.Arcade.Group;
   private enemyBullets!: Phaser.Physics.Arcade.Group;
-  
+
   private missileAmmo: number = 3;
   private score: number = 0;
   private health: number = 100;
-  
+
   private enemies!: Phaser.Physics.Arcade.Group;
   private ammoCrates!: Phaser.Physics.Arcade.Group;
   private buildings!: Phaser.Physics.Arcade.Group;
-  
+
   private lastEnemySpawn: number = 0;
   private lastBuildingSpawn: number = 0;
-  
+
   private sky!: Phaser.GameObjects.TileSprite;
   private farBuildings!: Phaser.GameObjects.TileSprite;
   private nearBuildings!: Phaser.GameObjects.TileSprite;
   private screenBuildings!: Phaser.Physics.Arcade.Group;
-  
+
   private distanceTraveled: number = 0;
   private checkpointThreshold: number = 5000;
   private isPaused: boolean = false;
-  private youtubeVideos = ["2DXfUDiIcsY","4xTJ3BPCtMc","6ju5NziYYlc","-84Hc6ywY04","9yACrRUsQoo","bzHm7JM0MI4","C9HIAUHqU7A","CSxMRjyvnPU","DFY_w8XmWfY","ESA07F5rQLk","Fp7opQZ39ds","gGXxE9OYIaM","GlTyyTUjLv0","gq9Fz6H9zE0","hV4maRZYX6M","iEky-ldyPnU","JdwTJsRHodc","JTdhuyB_0fE","jX1TbV26XDc","lePl30G1DUA","lXQWSiJQTvM","qd_9ksHVApQ","rtdpDahE3Lw","S_8-Le7xdns","SAZuBkHg_mU","TS2GDGR__48","ugXdVO8Bb9o","vqLaAxZy14A","vRplaUoD1S0","WxyZaNN6xQ8","xv8599zXFvQ","zGKjoTmyNRU","zoKfzZ25htA","zOSVBpr3hB0","ZYqST2YHOHs"];
+  private youtubeVideos = ["4xTJ3BPCtMc","6ju5NziYYlc","9yACrRUsQoo","bzHm7JM0MI4","C9HIAUHqU7A","CSxMRjyvnPU","ESA07F5rQLk","Fp7opQZ39ds","gGXxE9OYIaM","jX1TbV26XDc","S_8-Le7xdns","8-7IZHG9j9o","weoN33Pgyt0","jFt1MWRLfDE","ftdu02JcehE","hcDVTZ7Yr-c","2xwlT2jZ-54","Vrjrvn7xDAU","8swwfMPsCDs","tzOBHFtvuZQ","oH8jJzG2hWI","i4hiaF8DeIA","dgYyBjXStJg","ApG9sE2V2V8","UfPrGFGf1Lc","Gky7LKSD70s","QSKb8XeKqHQ","f8I7YJQNuuY","w1wsycotDyA","dadf2IOIAc4","9mj9WdTuoJQ","e3S4kYhffO0","j7Bfo5HZQeg","OGR0xWjnwOM","p3epfAB-nA4","Sn-S1wt-mfo","d4OLMD78bGQ","wCw5rilQuH0","fxsYMN5ynUM","jWz5V5jWk0w","XpMECNQKjZA","Xerm3_L5l5M","3qFtJbyQ33Q","0pZ_NL3y24E","QpVm4Mf88H8","LZt_RsAwr4Q","mQa409RqQqI","TMR-IeW8xmU","4rUtjtvMkrc","QbzNvpOTG24","GQqf2psk-Bw","EVIeaEKhvKQ","fDkfD0gBHE4","3PWQBT5AScE","2DXfUDiIcsY",];
 
   private videosWatched: number = 0;
   private bgmStarted: boolean = false;
+  private enemyCounter: number = 0;
+  private isBossLevel: boolean = false;
+  private tvs!: Phaser.GameObjects.Group;
+  private fireballSfx!: Phaser.Sound.BaseSound;
+  private killSfx!: Phaser.Sound.BaseSound;
+
+  // Environmental Properties
+  private envCycleTimer: number = 0;
+  private currentEnvState: 'DAY' | 'SUNSET' | 'NIGHT' | 'SUNRISE' = 'DAY';
+  private weatherEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private cloudsGroup!: Phaser.GameObjects.Group;
+  private lightningOverlay!: Phaser.GameObjects.Rectangle;
+  private lastLightningTime: number = 0;
 
   constructor() {
     super({ key: 'MainScene' });
   }
 
   preload() {
-    // placeholders
+    this.load.image('dragon', 'dragon.png');
+    this.load.image('chicken', 'chicken.png');
+    this.load.image('pig', 'pig.png');
+    this.load.image('cow', 'cow.png');
+    this.load.image('tv', 'tv.png');
+    this.load.svg('fireball', 'fireball.svg');
+    this.load.svg('missile', 'missile.svg');
+    this.load.svg('ammoCrate', 'ammoCrate.svg');
+
+    // NYC Buildings & Landmarks
+    this.load.svg('empire_state', 'empire_state.svg');
+    this.load.svg('chrysler', 'chrysler.svg');
+    this.load.svg('skyscraper_blue', 'skyscraper_blue.svg');
+    this.load.svg('skyscraper_pink', 'skyscraper_pink.svg');
+    this.load.svg('statue_of_liberty', 'statue_of_liberty.svg');
+    this.load.svg('city_far', 'city_far.svg');
+    this.load.svg('city_near', 'city_near.svg');
+    this.load.svg('cloud', 'cloud.svg');
+    this.load.svg('snow_particle', 'snow_particle.svg');
+
+    // Audio SFX (Using WAV for lower latency and better sync)
+    this.load.audio('fireballSfx', 'fireball.wav');
+    this.load.audio('killSfx', 'kill.wav');
   }
 
   create() {
+    // Initialize sound effects to reduce play() overhead
+    this.fireballSfx = this.sound.add('fireballSfx', { volume: 0.1 });
+    this.killSfx = this.sound.add('killSfx', { volume: 0.1 });
+
     const width = this.sys.canvas.width;
     const height = this.sys.canvas.height;
 
-    // Background Textures
+    // Background Layer: Deep Space/Sky
     const skyG = this.add.graphics();
-    skyG.fillStyle(0x0a0a2a, 1);
+    skyG.fillStyle(0xffffff, 1);
     skyG.fillRect(0, 0, 100, height);
     skyG.generateTexture('sky', 100, height);
     skyG.destroy();
 
-    const farG = this.add.graphics();
-    farG.fillStyle(0x1a1a4a, 1);
-    farG.fillRect(0, height - 200, 200, 200);
-    farG.fillRect(200, height - 300, 100, 300);
-    farG.generateTexture('farBg', 400, height);
-    farG.destroy();
-
-    const nearG = this.add.graphics();
-    nearG.fillStyle(0x2a2a6a, 1);
-    nearG.fillRect(0, height - 100, 150, 100);
-    nearG.fillRect(150, height - 150, 100, 150);
-    nearG.generateTexture('nearBg', 300, height);
-    nearG.destroy();
-
     this.sky = this.add.tileSprite(width / 2, height / 2, width, height, 'sky');
-    this.farBuildings = this.add.tileSprite(width / 2, height / 2, width, height, 'farBg');
-    this.nearBuildings = this.add.tileSprite(width / 2, height / 2, width, height, 'nearBg');
+    
+    // Distant City Layer
+    this.farBuildings = this.add.tileSprite(width / 2, height - 200, width, 400, 'city_far');
+    this.farBuildings.setAlpha(0.4);
+    
+    // Near City Layer
+    this.nearBuildings = this.add.tileSprite(width / 2, height - 100, width, 400, 'city_near');
+    this.nearBuildings.setAlpha(0.6);
 
-    // Weather Particles (Rain)
+    // Weather & Atmosphere Initialization
+    this.cloudsGroup = this.add.group();
+    
+    // Rain texture placeholder
     const rainG = this.add.graphics();
     rainG.fillStyle(0x00ffff, 0.5);
     rainG.fillRect(0, 0, 2, 10);
     rainG.generateTexture('rainParticle', 2, 10);
     rainG.destroy();
 
-    this.add.particles(0, 0, 'rainParticle', {
+    this.weatherEmitter = this.add.particles(0, 0, 'rainParticle', {
       x: { min: 0, max: width },
       y: 0,
       lifespan: 1500,
@@ -87,52 +121,25 @@ export default class MainScene extends Phaser.Scene {
       blendMode: 'ADD'
     });
 
+    this.lightningOverlay = this.add.rectangle(width/2, height/2, width, height, 0xffffff, 0)
+      .setDepth(5000).setScrollFactor(0);
+
     this.add.text(10, 10, 'Dragon Game Loaded', { color: '#0f0' }).setDepth(100);
 
-    // Entity Textures
-    const graphics = this.add.graphics();
-    graphics.fillStyle(0x00ff00, 1);
-    graphics.fillRect(0, 0, 40, 40);
-    graphics.generateTexture('dragon', 40, 40);
-    graphics.destroy();
+    // Initial Weather check
+    this.time.addEvent({
+      delay: 20000,
+      callback: this.changeWeather,
+      callbackScope: this,
+      loop: true
+    });
 
-    const fireballGraphics = this.add.graphics();
-    fireballGraphics.fillStyle(0xffa500, 1);
-    fireballGraphics.fillRect(0, 0, 15, 5);
-    fireballGraphics.generateTexture('fireball', 15, 5);
-    fireballGraphics.destroy();
-
-    const missileGraphics = this.add.graphics();
-    missileGraphics.fillStyle(0xff0000, 1);
-    missileGraphics.fillRect(0, 0, 25, 10);
-    missileGraphics.generateTexture('missile', 25, 10);
-    missileGraphics.destroy();
-    
+    // Bullet Textures (Remaining placeholders)
     const enemyBulletGraphics = this.add.graphics();
     enemyBulletGraphics.fillStyle(0xffeb3b, 1);
     enemyBulletGraphics.fillCircle(5, 5, 5);
     enemyBulletGraphics.generateTexture('enemyBullet', 10, 10);
     enemyBulletGraphics.destroy();
-
-    const enemyGraphics = this.add.graphics();
-    enemyGraphics.fillStyle(0xff00ff, 1);
-    enemyGraphics.fillRect(0, 0, 30, 30);
-    enemyGraphics.generateTexture('enemy', 30, 30);
-    enemyGraphics.destroy();
-
-    const ammoCrateGraphics = this.add.graphics();
-    ammoCrateGraphics.fillStyle(0x00ffff, 1);
-    ammoCrateGraphics.fillRect(0, 0, 20, 20);
-    ammoCrateGraphics.generateTexture('ammoCrate', 20, 20);
-    ammoCrateGraphics.destroy();
-
-    const buildingG = this.add.graphics();
-    buildingG.fillStyle(0x333333, 1);
-    buildingG.lineStyle(2, 0x00ffff, 1);
-    buildingG.fillRect(0, 0, 80, 800);
-    buildingG.strokeRect(0, 0, 80, 800);
-    buildingG.generateTexture('buildingTexture', 80, 800);
-    buildingG.destroy();
 
     const screenBuildingG = this.add.graphics();
     screenBuildingG.fillStyle(0x000000, 1);
@@ -145,6 +152,8 @@ export default class MainScene extends Phaser.Scene {
     // Init Player
     this.dragon = this.physics.add.sprite(100, 300, 'dragon');
     this.dragon.setCollideWorldBounds(true);
+    this.dragon.setDisplaySize(100, 40);
+    this.dragon.body?.setSize(60, 30); // Tighter collision box for the dragon body
 
     if (this.input.keyboard) {
       this.cursors = this.input.keyboard.createCursorKeys();
@@ -161,35 +170,58 @@ export default class MainScene extends Phaser.Scene {
     this.enemyBullets = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: -1, runChildUpdate: true });
     this.enemies = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: -1, runChildUpdate: true });
     this.ammoCrates = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: -1, runChildUpdate: true });
-    
+
     this.buildings = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, allowGravity: false, immovable: true });
     this.screenBuildings = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, allowGravity: false, immovable: true });
+    this.tvs = this.add.group();
 
     // Clean up any lingering listeners
     GameEvents.off('video-complete');
-    
+
     const onVideoComplete = () => {
       // Ensure the scene hasn't been destroyed before attempting to resume
       if (!this.sys || !this.scene || !this.scene.manager) return;
-      
+
       this.isPaused = false;
       this.scene.resume();
       GameEvents.emit('bgm-play'); // Resume BGM
-      
+
       this.score += 50; 
       GameEvents.emit('score-changed', this.score);
       this.screenBuildings.clear(true, true);
-      
+      this.tvs.clear(true, true);
+
       this.videosWatched++;
-      if (this.videosWatched >= 3) {
-        GameEvents.emit('game-over');
+      if (this.videosWatched >= 10) {
+        this.triggerGameOver();
+      } else if (this.videosWatched === 9) {
+        this.isBossLevel = true;
+        this.spawnBoss();
       }
     };
-    
-    GameEvents.on('video-complete', onVideoComplete);
 
-    this.events.on(Phaser.Scenes.Events.SHUTDOWN, () => GameEvents.off('video-complete', onVideoComplete));
-    this.events.on(Phaser.Scenes.Events.DESTROY, () => GameEvents.off('video-complete', onVideoComplete));
+    GameEvents.on('video-complete', onVideoComplete);
+    const onRestartGame = () => {
+      this.score = 0;
+      this.health = 100;
+      this.missileAmmo = 3;
+      this.videosWatched = 0;
+      this.distanceTraveled = 0;
+      this.isPaused = false;
+      this.bgmStarted = false;
+      this.isBossLevel = false;
+      this.scene.restart();
+    };
+    GameEvents.on('restart-game', onRestartGame);
+
+    this.events.on(Phaser.Scenes.Events.SHUTDOWN, () => {
+      GameEvents.off('video-complete', onVideoComplete);
+      GameEvents.off('restart-game', onRestartGame);
+    });
+    this.events.on(Phaser.Scenes.Events.DESTROY, () => {
+      GameEvents.off('video-complete', onVideoComplete);
+      GameEvents.off('restart-game', onRestartGame);
+    });
 
     // Collisions
     this.physics.add.collider(this.fireballs, this.enemies, this.handleFireballHit as any, undefined, this);
@@ -221,29 +253,149 @@ export default class MainScene extends Phaser.Scene {
     }
 
     this.input.mouse?.disableContextMenu();
-    
+
     GameEvents.emit('ammo-changed', this.missileAmmo);
     GameEvents.emit('health-changed', this.health);
+
+    // How to Play Overlay
+    this.showHowToPlay(width, height);
+  }
+
+  changeWeather() {
+    const choices = ['RAIN', 'SNOW', 'CLEAR'];
+    const weather = choices[Phaser.Math.Between(0, choices.length - 1)];
+    
+    if (weather === 'RAIN') {
+      this.weatherEmitter.setTexture('rainParticle');
+      this.weatherEmitter.setConfig({
+        speedY: { min: 300, max: 500 },
+        quantity: 2
+      });
+    } else if (weather === 'SNOW') {
+      this.weatherEmitter.setTexture('snow_particle');
+      this.weatherEmitter.setConfig({
+        speedY: { min: 50, max: 150 },
+        quantity: 1
+      });
+    } else {
+      this.weatherEmitter.setConfig({
+        quantity: 0
+      });
+    }
+  }
+
+  spawnCloud() {
+    const x = this.sys.canvas.width + 100;
+    const y = Phaser.Math.Between(50, 200);
+    const cloud = this.add.image(x, y, 'cloud');
+    cloud.setAlpha(0.3);
+    cloud.setScale(Phaser.Math.FloatBetween(0.5, 1.5));
+    cloud.setDepth(-1.5); // Between distant city and sky
+    this.cloudsGroup.add(cloud);
+  }
+
+  triggerLightning() {
+    if (this.currentEnvState !== 'NIGHT') return;
+    
+    this.lightningOverlay.setAlpha(0.7);
+    this.tweens.add({
+      targets: this.lightningOverlay,
+      alpha: 0,
+      duration: 300,
+      ease: 'Power2'
+    });
+  }
+
+  showHowToPlay(width: number, height: number) {
+    const container = this.add.container(width / 2, height / 2).setDepth(3000).setScrollFactor(0);
+    
+    const bg = this.add.rectangle(0, 0, 500, 300, 0x000000, 0.7);
+    bg.setStrokeStyle(2, 0x00ffff);
+    
+    const title = this.add.text(0, -110, 'HOW TO PLAY', {
+      fontFamily: 'monospace',
+      fontSize: '32px',
+      color: '#ff00ff',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+
+    const controls = [
+      'WASD / ARROWS : Move Dragon',
+      'LEFT CLICK    : Fireball (Inf)',
+      'RIGHT CLICK   : Missile (Ltd)',
+      '',
+      'Objective: Reach Liberty Statue',
+      'Watch videos to gain points!'
+    ];
+
+    const content = this.add.text(0, 20, controls.join('\n'), {
+      fontFamily: 'monospace',
+      fontSize: '20px',
+      color: '#00ffff',
+      align: 'center',
+      lineSpacing: 10
+    }).setOrigin(0.5);
+
+    container.add([bg, title, content]);
+
+    // Fade out after 5 seconds
+    this.time.delayedCall(5000, () => {
+      this.tweens.add({
+        targets: container,
+        alpha: 0,
+        duration: 1000,
+        onComplete: () => container.destroy()
+      });
+    });
   }
 
   takeDamage(amount: number) {
     this.health -= amount;
     if (this.health <= 0) {
       this.health = 0;
-      GameEvents.emit('game-over');
+      this.triggerGameOver();
     }
     GameEvents.emit('health-changed', this.health);
-    
+
     this.dragon.setTint(0xff0000);
     this.time.delayedCall(100, () => this.dragon.clearTint());
   }
 
+  triggerGameOver() {
+    if (this.isPaused) return;
+    this.isPaused = true;
+    this.physics.pause();
+    this.dragon.setVelocity(0);
+
+    const width = this.sys.canvas.width;
+    const height = this.sys.canvas.height;
+
+    // Show "GOOD GAME" text
+    this.add.text(width / 2, height / 2, 'GOOD GAME', {
+      fontFamily: 'monospace',
+      fontSize: '80px',
+      color: '#00ffff',
+      stroke: '#ff00ff',
+      strokeThickness: 10,
+    }).setOrigin(0.5).setDepth(2000).setScrollFactor(0);
+
+    // Fade out BGM (starts a 3s fade)
+    GameEvents.emit('bgm-stop');
+
+    // Wait 4 seconds then transition to end screen
+    this.time.delayedCall(4000, () => {
+      GameEvents.emit('game-over');
+    });
+  }
+
   fireFireball() {
+    this.fireballSfx.play();
     const fireball = this.fireballs.get(this.dragon.x + 20, this.dragon.y) as Phaser.Physics.Arcade.Sprite | null;
     if (fireball) {
       fireball.enableBody(true, this.dragon.x + 20, this.dragon.y, true, true);
       fireball.setTexture('fireball');
-      fireball.body?.setSize(15, 5);
+      fireball.setDisplaySize(30, 15);
+      fireball.body?.setSize(20, 10);
       if (!fireball.body) this.physics.add.existing(fireball);
       fireball.setVelocityX(600);
       fireball.setCollideWorldBounds(false);
@@ -255,12 +407,13 @@ export default class MainScene extends Phaser.Scene {
     if (this.missileAmmo > 0) {
       this.missileAmmo--;
       GameEvents.emit('ammo-changed', this.missileAmmo);
-      
+
       const missile = this.missiles.get(this.dragon.x + 20, this.dragon.y) as Phaser.Physics.Arcade.Sprite | null;
       if (missile) {
         missile.enableBody(true, this.dragon.x + 20, this.dragon.y, true, true);
         missile.setTexture('missile');
-        missile.body?.setSize(25, 10);
+        missile.setDisplaySize(40, 20);
+        missile.body?.setSize(30, 15);
         if (!missile.body) this.physics.add.existing(missile);
         missile.setVelocityX(400);
       }
@@ -269,17 +422,30 @@ export default class MainScene extends Phaser.Scene {
 
   handleFireballHit(fireball: Phaser.Physics.Arcade.Sprite, enemy: Phaser.Physics.Arcade.Sprite) {
     fireball.disableBody(true, true);
-    this.killEnemy(enemy);
+    this.damageEnemy(enemy, 10);
   }
 
   handleMissileHit(missile: Phaser.Physics.Arcade.Sprite, enemy: Phaser.Physics.Arcade.Sprite) {
     missile.disableBody(true, true);
-    this.killEnemy(enemy);
+    this.damageEnemy(enemy, 30);
+  }
+
+  damageEnemy(enemy: Phaser.Physics.Arcade.Sprite, damage: number) {
+    let health = enemy.getData('health') - damage;
+    enemy.setData('health', health);
+
+    enemy.setTint(0xff0000);
+    this.time.delayedCall(100, () => enemy.clearTint());
+
+    if (health <= 0) {
+      this.killEnemy(enemy);
+    }
   }
 
   handlePlayerHit(_dragon: Phaser.Physics.Arcade.Sprite, enemy: Phaser.Physics.Arcade.Sprite) {
+    const damage = enemy.getData('damage') || 20;
     enemy.disableBody(true, true);
-    this.takeDamage(20); // Massive damage for body hit
+    this.takeDamage(damage);
   }
 
   handleEnemyBulletHit(_dragon: Phaser.Physics.Arcade.Sprite, bullet: Phaser.Physics.Arcade.Sprite) {
@@ -298,10 +464,12 @@ export default class MainScene extends Phaser.Scene {
   }
 
   killEnemy(enemy: Phaser.Physics.Arcade.Sprite) {
+    this.killSfx.play();
+    const points = enemy.getData('points') || 10;
     enemy.disableBody(true, true);
-    this.score += 10;
+    this.score += points;
     GameEvents.emit('score-changed', this.score);
-    
+
     if (Math.random() < 0.2) {
       this.spawnAmmoCrate(enemy.x, enemy.y);
     }
@@ -312,52 +480,121 @@ export default class MainScene extends Phaser.Scene {
     if (crate) {
       crate.enableBody(true, x, y, true, true);
       crate.setTexture('ammoCrate');
+      crate.setDisplaySize(30, 30);
+      crate.body?.setSize(24, 24);
       if (!crate.body) this.physics.add.existing(crate);
       crate.setVelocityX(-100);
     }
   }
 
   spawnEnemy() {
+    if (this.isBossLevel) return;
+    this.enemyCounter++;
+
+    let type = 'chicken';
+    let health = 10;
+    let damage = 10;
+    let points = 10;
+    let width = 60;
+    let height = 60;
+
+    // Difficulty increases with levels
+    const levelFactor = 1 + (this.videosWatched * 0.2);
+    health = Math.floor(health * levelFactor);
+
+    if (this.enemyCounter % 20 === 0) {
+      type = 'cow';
+      health = Math.floor(50 * levelFactor);
+      damage = 20;
+      points = 200;
+      width = 95;
+      height = 95;
+    } else if (this.enemyCounter % 5 === 0) {
+      type = 'pig';
+      health = Math.floor(30 * levelFactor);
+      damage = 20;
+      points = 50;
+      width = 80;
+      height = 80;
+    }
+
     const y = Phaser.Math.Between(50, this.sys.canvas.height - 50);
     const x = this.sys.canvas.width + 50;
     const enemy = this.enemies.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
-    
+
     if (enemy) {
       enemy.enableBody(true, x, y, true, true);
-      enemy.setTexture('enemy');
-      if (!enemy.body) this.physics.add.existing(enemy);
+      enemy.setTexture(type);
+      enemy.setDisplaySize(width, height);
+      enemy.setAlpha(0.8);
+      enemy.setData('isBoss', false);
+
+      // Sync collision body to display size
+      enemy.body?.setSize(enemy.width, enemy.height);
+
+      enemy.setData('health', health);
+      enemy.setData('maxHealth', health);
+      enemy.setData('damage', damage);
+      enemy.setData('points', points);
+
       enemy.setVelocityX(Phaser.Math.Between(-150, -300));
-      // Store next shot time
       enemy.setData('nextShot', this.time.now + Phaser.Math.Between(1000, 3000));
     }
   }
 
-  spawnEnemyBullet(x: number, y: number) {
-    const bullet = this.enemyBullets.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
-    if (bullet) {
-      bullet.enableBody(true, x, y, true, true);
-      bullet.setTexture('enemyBullet');
-      if (!bullet.body) this.physics.add.existing(bullet);
-      bullet.body?.setSize(10, 10);
-      bullet.setVelocityX(-400); // Shoot left
+  spawnBoss() {
+    // Add Statue of Liberty in background as the final goal
+    const liberty = this.add.image(this.sys.canvas.width + 400, this.sys.canvas.height - 200, 'statue_of_liberty');
+    liberty.setDisplaySize(200, 400);
+    liberty.setDepth(-2);
+    this.tweens.add({
+      targets: liberty,
+      x: this.sys.canvas.width / 2,
+      duration: 10000,
+      ease: 'Linear'
+    });
+
+    const y = this.sys.canvas.height / 2;
+    const x = this.sys.canvas.width + 200;
+    const boss = this.enemies.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
+
+    if (boss) {
+      boss.enableBody(true, x, y, true, true);
+      boss.setTexture('cow');
+      boss.setDisplaySize(300, 300);
+      boss.setAlpha(1);
+      boss.setData('isBoss', true);
+
+      boss.body?.setSize(boss.width, boss.height);
+
+      boss.setData('health', 300);
+      boss.setData('maxHealth', 300);
+      boss.setData('damage', 30);
+      boss.setData('points', 1000);
+
+      boss.setVelocityX(-100);
+      boss.setData('nextShot', this.time.now + 1000);
     }
   }
 
-  spawnBuilding() {
-    const bottomHeight = Phaser.Math.Between(100, this.sys.canvas.height - 100);
-    const x = this.sys.canvas.width + 50;
+  spawnEnemyBullet(x: number, y: number, isBoss: boolean = false) {
+    const shoot = (vx: number, vy: number) => {
+      const bullet = this.enemyBullets.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
+      if (bullet) {
+        bullet.enableBody(true, x, y, true, true);
+        bullet.setTexture('enemyBullet');
+        if (!bullet.body) this.physics.add.existing(bullet);
+        bullet.body?.setSize(10, 10);
+        bullet.setVelocity(vx, vy);
+      }
+    };
 
-    // Only spawn the bottom building as requested
-    const y = this.sys.canvas.height - bottomHeight / 2;
-    const bottomBuilding = this.buildings.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
-    if (bottomBuilding) {
-      bottomBuilding.enableBody(true, x, y, true, true);
-      bottomBuilding.setTexture('buildingTexture');
-      if (!bottomBuilding.body) this.physics.add.existing(bottomBuilding);
-      bottomBuilding.body?.setSize(80, bottomHeight);
-      bottomBuilding.setDisplaySize(80, bottomHeight);
-      (bottomBuilding.body as Phaser.Physics.Arcade.Body).setImmovable(true);
-      bottomBuilding.setVelocityX(-100);
+    if (isBoss) {
+      shoot(-400, -100);
+      shoot(-400, 0);
+      shoot(-400, 100);
+    } else {
+      shoot(-400, 0);
     }
   }
 
@@ -371,19 +608,96 @@ export default class MainScene extends Phaser.Scene {
       if (!screenBuilding.body) this.physics.add.existing(screenBuilding);
       (screenBuilding.body as Phaser.Physics.Arcade.Body).setImmovable(true);
       screenBuilding.setVelocityX(-100);
-      screenBuilding.setDepth(-1); 
+      screenBuilding.setDepth(-1);
+
+      // Add TV icon
+      const tv = this.add.image(x, y - 100, 'tv');
+      tv.setDisplaySize(120, 90);
+      tv.setDepth(1);
+      this.tvs.add(tv);
     }
   }
 
-  update(time: number, _delta: number) {
+  spawnBuilding() {
+    const buildingTypes = [
+      { key: 'empire_state', width: 80, minH: 300 },
+      { key: 'chrysler', width: 80, minH: 300 },
+      { key: 'skyscraper_blue', width: 60, minH: 200 },
+      { key: 'skyscraper_pink', width: 70, minH: 200 }
+    ];
+    
+    const type = buildingTypes[Phaser.Math.Between(0, buildingTypes.length - 1)];
+    const height = Phaser.Math.Between(type.minH, this.sys.canvas.height - 100);
+    const x = this.sys.canvas.width + 100;
+    const y = this.sys.canvas.height - height / 2;
+
+    const building = this.buildings.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
+    if (building) {
+      building.enableBody(true, x, y, true, true);
+      building.setTexture(type.key);
+      building.setDisplaySize(type.width, height);
+      (building.body as Phaser.Physics.Arcade.Body).setImmovable(true);
+      building.setVelocityX(-100);
+    }
+  }
+
+  update(time: number, delta: number) {
     if (this.isPaused) return;
 
-    this.distanceTraveled += 1;
+    // Environment Cycle (60s total cycle)
+    this.envCycleTimer += delta;
+    const cyclePos = (this.envCycleTimer % 60000) / 60000;
     
-    if (this.distanceTraveled > this.checkpointThreshold) {
+    let skyColor: number;
+    if (cyclePos < 0.25) {
+      this.currentEnvState = 'DAY';
+      skyColor = 0x161b33; // Deep desaturated blue (Light Dark)
+    } else if (cyclePos < 0.5) {
+      this.currentEnvState = 'SUNSET';
+      skyColor = 0x2c1414; // Dark murky crimson
+    } else if (cyclePos < 0.75) {
+      this.currentEnvState = 'NIGHT';
+      skyColor = 0x020205; // Almost black
+      // Random Lightning in Night
+      if (time > this.lastLightningTime + Phaser.Math.Between(3000, 8000)) {
+        this.triggerLightning();
+        this.lastLightningTime = time;
+      }
+    } else {
+      this.currentEnvState = 'SUNRISE';
+      skyColor = 0x1a1a2e; // Deep purple-blue
+    }
+    this.sky.setTint(skyColor);
+
+    // Drifting Clouds
+    if (Phaser.Math.Between(0, 500) === 0) {
+      this.spawnCloud();
+    }
+    this.cloudsGroup.children.each((c) => {
+      const cloud = c as Phaser.GameObjects.Image;
+      cloud.x -= 0.5;
+      if (cloud.x < -200) {
+        cloud.destroy();
+      }
+      return true;
+    });
+
+    this.distanceTraveled += 1;
+
+    if (this.distanceTraveled > this.checkpointThreshold && !this.isBossLevel) {
        this.distanceTraveled = 0; 
        this.spawnCheckpoint();
     }
+
+    // Update TV positions to follow buildings
+    this.screenBuildings.children.each((sb, index) => {
+      const building = sb as Phaser.Physics.Arcade.Sprite;
+      const tv = this.tvs.getChildren()[index] as Phaser.GameObjects.Image;
+      if (building && tv) {
+        tv.x = building.x;
+      }
+      return true;
+    });
 
     // Checkpoint interaction
     this.screenBuildings.children.each((sb) => {
@@ -392,7 +706,7 @@ export default class MainScene extends Phaser.Scene {
         sprite.setVelocityX(0);
         this.isPaused = true;
         this.dragon.setVelocity(0);
-        
+
         const randomVideoId = this.youtubeVideos[Phaser.Math.Between(0, this.youtubeVideos.length - 1)];
         this.scene.pause();
         GameEvents.emit('bgm-stop');
@@ -422,32 +736,38 @@ export default class MainScene extends Phaser.Scene {
       this.dragon.setVelocityY(speed);
     }
 
-    if (time > this.lastEnemySpawn) {
+    if (time > this.lastEnemySpawn && !this.isBossLevel) {
         this.spawnEnemy();
-        this.lastEnemySpawn = time + Phaser.Math.Between(1000, 3000);
+        this.lastEnemySpawn = time + Phaser.Math.Between(1000, 3000) / (1 + this.videosWatched * 0.1);
     }
 
-    if (time > this.lastBuildingSpawn) {
+    if (time > this.lastBuildingSpawn && !this.isBossLevel) {
         this.spawnBuilding();
         this.lastBuildingSpawn = time + Phaser.Math.Between(3000, 6000);
     }
 
-    // Enemy shooting logic
+    // Enemy shooting and movement logic
     this.enemies.children.each((e) => {
         const sprite = e as Phaser.Physics.Arcade.Sprite;
         if (sprite.active && sprite.x < this.sys.canvas.width && sprite.x > 0) {
             const nextShot = sprite.getData('nextShot');
+            const isBoss = sprite.getData('isBoss');
+
+            if (isBoss && sprite.x < this.sys.canvas.width * 0.8) {
+              sprite.setVelocityX(0);
+            }
+
             if (time > nextShot) {
-                this.spawnEnemyBullet(sprite.x, sprite.y);
-                sprite.setData('nextShot', time + Phaser.Math.Between(2000, 5000));
+                this.spawnEnemyBullet(sprite.x, sprite.y, isBoss);
+                const shotDelay = isBoss ? 1000 : Phaser.Math.Between(2000, 5000);
+                sprite.setData('nextShot', time + shotDelay);
             }
         }
-        if (sprite.active && sprite.x < -50) {
+        if (sprite.active && sprite.x < -150) { // Increased margin for large boss
             sprite.disableBody(true, true);
         }
         return true;
     });
-
     // Cleanups
     const cleanOffscreen = (group: Phaser.Physics.Arcade.Group, boundary: number, checkRight: boolean = false) => {
       group.children.each((item) => {

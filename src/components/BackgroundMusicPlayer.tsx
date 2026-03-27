@@ -2,16 +2,41 @@ import { useEffect, useRef, useState } from 'react';
 import YouTube, { YouTubeProps } from 'react-youtube';
 import { GameEvents } from '../game/GameEvents';
 
-const YOUTUBE_VIDEOS = ["2DXfUDiIcsY","4xTJ3BPCtMc","6ju5NziYYlc","-84Hc6ywY04","9yACrRUsQoo","bzHm7JM0MI4","C9HIAUHqU7A","CSxMRjyvnPU","DFY_w8XmWfY","ESA07F5rQLk","Fp7opQZ39ds","gGXxE9OYIaM","GlTyyTUjLv0","gq9Fz6H9zE0","hV4maRZYX6M","iEky-ldyPnU","JdwTJsRHodc","JTdhuyB_0fE","jX1TbV26XDc","lePl30G1DUA","lXQWSiJQTvM","qd_9ksHVApQ","rtdpDahE3Lw","S_8-Le7xdns","SAZuBkHg_mU","TS2GDGR__48","ugXdVO8Bb9o","vqLaAxZy14A","vRplaUoD1S0","WxyZaNN6xQ8","xv8599zXFvQ","zGKjoTmyNRU","zoKfzZ25htA","zOSVBpr3hB0","ZYqST2YHOHs"];
+const YOUTUBE_VIDEOS = ["2DXfUDiIcsY","4xTJ3BPCtMc","6ju5NziYYlc","9yACrRUsQoo","bzHm7JM0MI4","C9HIAUHqU7A","CSxMRjyvnPU","ESA07F5rQLk","Fp7opQZ39ds","gGXxE9OYIaM","jX1TbV26XDc","S_8-Le7xdns","8-7IZHG9j9o","weoN33Pgyt0","jFt1MWRLfDE","ftdu02JcehE","hcDVTZ7Yr-c","2xwlT2jZ-54","Vrjrvn7xDAU","8swwfMPsCDs","tzOBHFtvuZQ","oH8jJzG2hWI","i4hiaF8DeIA","dgYyBjXStJg","ApG9sE2V2V8","UfPrGFGf1Lc","Gky7LKSD70s","QSKb8XeKqHQ","f8I7YJQNuuY","w1wsycotDyA","dadf2IOIAc4","9mj9WdTuoJQ","e3S4kYhffO0","j7Bfo5HZQeg","OGR0xWjnwOM","p3epfAB-nA4","Sn-S1wt-mfo","d4OLMD78bGQ","wCw5rilQuH0","fxsYMN5ynUM","jWz5V5jWk0w","XpMECNQKjZA","Xerm3_L5l5M","3qFtJbyQ33Q","0pZ_NL3y24E","QpVm4Mf88H8","LZt_RsAwr4Q","mQa409RqQqI","TMR-IeW8xmU","4rUtjtvMkrc","QbzNvpOTG24","GQqf2psk-Bw","EVIeaEKhvKQ","fDkfD0gBHE4","3PWQBT5AScE"];
+const TARGET_VOLUME = 33;
+const FADE_DURATION = 3000; // 3 seconds
 
 export default function BackgroundMusicPlayer() {
-  // Use any for the player ref as react-youtube's internal player type is complex
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const playerRef = useRef<any>(null);
+  const fadeIntervalRef = useRef<number | null>(null);
   const [currentVideo, setCurrentVideo] = useState<string | null>(null);
   const [shouldPlay, setShouldPlay] = useState(false);
 
   const getRandomVideo = () => YOUTUBE_VIDEOS[Math.floor(Math.random() * YOUTUBE_VIDEOS.length)];
+
+  const fadeVolume = (targetVolume: number, onComplete?: () => void) => {
+    if (!playerRef.current) return;
+    if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
+
+    const startVolume = playerRef.current.getVolume();
+    const steps = 30; // Number of steps for the fade
+    const volumeStep = (targetVolume - startVolume) / steps;
+    const intervalTime = FADE_DURATION / steps;
+    let currentStep = 0;
+
+    fadeIntervalRef.current = window.setInterval(() => {
+      currentStep++;
+      const nextVolume = startVolume + (volumeStep * currentStep);
+      playerRef.current.setVolume(Math.max(0, Math.min(100, nextVolume)));
+
+      if (currentStep >= steps) {
+        clearInterval(fadeIntervalRef.current!);
+        fadeIntervalRef.current = null;
+        if (onComplete) onComplete();
+      }
+    }, intervalTime);
+  };
 
   useEffect(() => {
     const handlePlay = (videoId?: string) => {
@@ -20,11 +45,14 @@ export default function BackgroundMusicPlayer() {
         setCurrentVideo(videoId || getRandomVideo());
       } else {
         playerRef.current?.playVideo();
+        fadeVolume(TARGET_VOLUME);
       }
     };
     const handleStop = () => {
       setShouldPlay(false);
-      playerRef.current?.pauseVideo();
+      fadeVolume(0, () => {
+        playerRef.current?.pauseVideo();
+      });
     };
 
     GameEvents.on('bgm-play', handlePlay);
@@ -35,12 +63,13 @@ export default function BackgroundMusicPlayer() {
       GameEvents.off('bgm-play', handlePlay);
       GameEvents.off('bgm-stop', handleStop);
       GameEvents.off('game-over', handleStop);
+      if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
     };
   }, [currentVideo]);
 
   const onReady: YouTubeProps['onReady'] = (event) => {
     playerRef.current = event.target;
-    event.target.setVolume(33); // 33% volume
+    event.target.setVolume(shouldPlay ? TARGET_VOLUME : 0);
     if (shouldPlay) {
       event.target.playVideo();
     }
@@ -48,7 +77,7 @@ export default function BackgroundMusicPlayer() {
 
   const onEnd: YouTubeProps['onEnd'] = () => {
     if (shouldPlay) {
-      setCurrentVideo(getRandomVideo()); // play next random song
+      setCurrentVideo(getRandomVideo());
     }
   };
 
