@@ -17,6 +17,12 @@ export default class MainScene extends Phaser.Scene {
   private farBuildings!: Phaser.GameObjects.TileSprite;
   private nearBuildings!: Phaser.GameObjects.TileSprite;
 
+  private screenBuildings!: Phaser.Physics.Arcade.Group;
+  private distanceTraveled: number = 0;
+  private checkpointThreshold: number = 5000;
+  private isPaused: boolean = false;
+  private youtubeVideos = ['dQw4w9WgXcQ', 'jNQXAC9IVRw', 'M7lc1UVf-VE'];
+
   constructor() {
     super({ key: 'MainScene' });
   }
@@ -113,6 +119,14 @@ export default class MainScene extends Phaser.Scene {
     buildingG.generateTexture('buildingTexture', 80, 800);
     buildingG.destroy();
 
+    const screenBuildingG = this.add.graphics();
+    screenBuildingG.fillStyle(0x000000, 1);
+    screenBuildingG.lineStyle(4, 0x00ff00, 1);
+    screenBuildingG.fillRect(0, 0, 400, 800);
+    screenBuildingG.strokeRect(0, 0, 400, 800);
+    screenBuildingG.generateTexture('screenBuilding', 400, 800);
+    screenBuildingG.destroy();
+
     this.dragon = this.physics.add.sprite(100, 300, 'dragon');
     this.dragon.setCollideWorldBounds(true);
 
@@ -153,6 +167,22 @@ export default class MainScene extends Phaser.Scene {
       classType: Phaser.Physics.Arcade.Sprite,
       allowGravity: false,
       immovable: true
+    });
+
+    this.screenBuildings = this.physics.add.group({
+      classType: Phaser.Physics.Arcade.Sprite,
+      allowGravity: false,
+      immovable: true
+    });
+
+    // Event listener for returning from video
+    GameEvents.on('video-complete', () => {
+      this.isPaused = false;
+      this.scene.resume();
+      this.score += 50; // reward for watching video
+      GameEvents.emit('score-changed', this.score);
+      // Clean up the checkpoint building
+      this.screenBuildings.clear(true, true);
     });
 
     // Collisions
@@ -334,7 +364,49 @@ export default class MainScene extends Phaser.Scene {
     }
   }
 
+  spawnCheckpoint() {
+    const x = this.sys.canvas.width + 200;
+    const y = this.sys.canvas.height / 2;
+    const screenBuilding = this.screenBuildings.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
+    if (screenBuilding) {
+      screenBuilding.setActive(true).setVisible(true).setTexture('screenBuilding');
+      if (!screenBuilding.body) this.physics.add.existing(screenBuilding);
+      (screenBuilding.body as Phaser.Physics.Arcade.Body).setImmovable(true);
+      screenBuilding.setVelocityX(-100);
+      screenBuilding.setDepth(-1); // Behind dragon
+    }
+  }
+
   update(time: number, _delta: number) {
+    if (this.isPaused) return;
+
+    // Advance distance
+    this.distanceTraveled += 1;
+    
+    // Check for checkpoint spawn
+    if (this.distanceTraveled > this.checkpointThreshold) {
+       this.distanceTraveled = 0; // reset
+       this.spawnCheckpoint();
+    }
+
+    // Check if checkpoint building reached center
+    this.screenBuildings.children.each((sb) => {
+      const sprite = sb as Phaser.Physics.Arcade.Sprite;
+      if (sprite.active && sprite.x <= this.sys.canvas.width / 2) {
+        sprite.setVelocityX(0); // stop it
+        this.isPaused = true;
+        this.dragon.setVelocity(0); // stop dragon
+        
+        // Pick random video
+        const randomVideoId = this.youtubeVideos[Phaser.Math.Between(0, this.youtubeVideos.length - 1)];
+        
+        // Pause scene and show modal
+        this.scene.pause();
+        GameEvents.emit('show-video', randomVideoId);
+      }
+      return true;
+    });
+
     // Parallax scrolling
     this.sky.tilePositionX += 0.5;
     this.farBuildings.tilePositionX += 1;
