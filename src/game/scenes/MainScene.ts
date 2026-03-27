@@ -21,7 +21,7 @@ export default class MainScene extends Phaser.Scene {
   private distanceTraveled: number = 0;
   private checkpointThreshold: number = 5000;
   private isPaused: boolean = false;
-  private youtubeVideos = ['dQw4w9WgXcQ', 'jNQXAC9IVRw', 'M7lc1UVf-VE'];
+  private youtubeVideos = ["2DXfUDiIcsY","4xTJ3BPCtMc","6ju5NziYYlc","-84Hc6ywY04","9yACrRUsQoo","bzHm7JM0MI4","C9HIAUHqU7A","CSxMRjyvnPU","DFY_w8XmWfY","ESA07F5rQLk","Fp7opQZ39ds","gGXxE9OYIaM","GlTyyTUjLv0","gq9Fz6H9zE0","hV4maRZYX6M","iEky-ldyPnU","JdwTJsRHodc","JTdhuyB_0fE","jX1TbV26XDc","lePl30G1DUA","lXQWSiJQTvM","qd_9ksHVApQ","rtdpDahE3Lw","S_8-Le7xdns","SAZuBkHg_mU","TS2GDGR__48","ugXdVO8Bb9o","vqLaAxZy14A","vRplaUoD1S0","WxyZaNN6xQ8","xv8599zXFvQ","zGKjoTmyNRU","zoKfzZ25htA","zOSVBpr3hB0","ZYqST2YHOHs"];
 
   private videosWatched: number = 0;
 
@@ -177,8 +177,14 @@ export default class MainScene extends Phaser.Scene {
       immovable: true
     });
 
+    // Clean up any lingering listeners from previous instance before creating a new one
+    GameEvents.off('video-complete');
+    
     // Event listener for returning from video
-    GameEvents.on('video-complete', () => {
+    const onVideoComplete = () => {
+      // Ensure the scene hasn't been destroyed before attempting to resume
+      if (!this.sys || !this.scene || !this.scene.manager) return;
+      
       this.isPaused = false;
       this.scene.resume();
       this.score += 50; // reward for watching video
@@ -190,6 +196,16 @@ export default class MainScene extends Phaser.Scene {
       if (this.videosWatched >= 3) { // Game over after 3 checkpoints
         GameEvents.emit('game-over');
       }
+    };
+    
+    GameEvents.on('video-complete', onVideoComplete);
+
+    // Cleanup events when scene shuts down or restarts
+    this.events.on(Phaser.Scenes.Events.SHUTDOWN, () => {
+        GameEvents.off('video-complete', onVideoComplete);
+    });
+    this.events.on(Phaser.Scenes.Events.DESTROY, () => {
+        GameEvents.off('video-complete', onVideoComplete);
     });
 
     // Collisions
