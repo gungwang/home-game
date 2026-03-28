@@ -3,7 +3,7 @@ import YouTube, { YouTubeProps } from 'react-youtube';
 import { GameEvents } from '../game/GameEvents';
 
 const YOUTUBE_VIDEOS = ["2DXfUDiIcsY","4xTJ3BPCtMc","6ju5NziYYlc","9yACrRUsQoo","bzHm7JM0MI4","C9HIAUHqU7A","CSxMRjyvnPU","ESA07F5rQLk","Fp7opQZ39ds","gGXxE9OYIaM","jX1TbV26XDc","S_8-Le7xdns","8-7IZHG9j9o","weoN33Pgyt0","jFt1MWRLfDE","ftdu02JcehE","hcDVTZ7Yr-c","2xwlT2jZ-54","Vrjrvn7xDAU","8swwfMPsCDs","tzOBHFtvuZQ","oH8jJzG2hWI","i4hiaF8DeIA","dgYyBjXStJg","ApG9sE2V2V8","UfPrGFGf1Lc","Gky7LKSD70s","QSKb8XeKqHQ","f8I7YJQNuuY","w1wsycotDyA","dadf2IOIAc4","9mj9WdTuoJQ","e3S4kYhffO0","j7Bfo5HZQeg","OGR0xWjnwOM","p3epfAB-nA4","Sn-S1wt-mfo","d4OLMD78bGQ","wCw5rilQuH0","fxsYMN5ynUM","jWz5V5jWk0w","XpMECNQKjZA","Xerm3_L5l5M","3qFtJbyQ33Q","0pZ_NL3y24E","QpVm4Mf88H8","LZt_RsAwr4Q","mQa409RqQqI","TMR-IeW8xmU","4rUtjtvMkrc","QbzNvpOTG24","GQqf2psk-Bw","EVIeaEKhvKQ","fDkfD0gBHE4","3PWQBT5AScE"];
-const TARGET_VOLUME = 33;
+const TARGET_VOLUME = 15;
 const FADE_DURATION = 3000; // 3 seconds
 
 export default function BackgroundMusicPlayer() {

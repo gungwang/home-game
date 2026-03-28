@@ -145,3 +145,34 @@ A linear narrative from Central Park to the Statue of Liberty, with landmark bui
 3.  **Phase 3 — Core Loop & Video Integration:** Implement building-checkpoint pause logic, precisely embed the YouTube player, complete the "fight → watch video → next stage" loop.
 4.  **Phase 4 — Mechanics & Multimedia:** Introduce missile weapon, weather system, score tracking, and the final resume page.
 5.  **Phase 5 — Polish & Optimization:** Source/create free art assets, tune game feel, balance numbers, fix bugs.
+## 6. 2026-03-28 更新与扩展机制 (Update: Feature Expansions)
+
+### 6.1 游戏模式 (Game Modes)
+*   **难度选择 (Difficulty Selection):** 游戏开始时增加难度选择 UI（Normal / Nightmare）。
+*   **梦魇模式 (Nightmare Mode):**
+    *   怪物生命值和攻击力翻倍 (Health & Damage x2)。
+    *   普通小怪（鸡）生成数量翻倍 (Chicken Spawns x2)。
+    *   精英怪（猪、牛、龙Boss）生成数量变为 3 倍 (Pig/Cow/Boss Spawns x3)。
+    *   所有怪物发射的子弹数量变为 3 倍（例如 Boss 发射 9 散弹）。
+
+### 6.2 关卡与背景 (Levels & Environments)
+*   **10 个真实地标关卡 (10 NYC Landmark Levels):** 关卡严格划分为 10 关，采用从北向南（中央公园 -> 曼哈顿下城 -> 自由女神像）的地理顺序。
+*   **专属检查点 (Unique Checkpoints):** 每关的终点（视频播放处）替换为关卡对应的特定地标 SVG（如帝国大厦、世贸中心），全息屏幕悬浮于其上。
+*   **开局缓冲 (Grace Period):** 游戏启动后有 6 秒的安全期（不刷怪/不刷大楼），用于展示操作说明，随后正式进入 LEVEL 1。
+
+### 6.3 战斗与武器系统 (Combat & Weapons)
+*   **武器上限提升至 4 级 (Level 4 Weapons):**
+    *   **龙息 (Fireball):** 满级（Lv4）可同时发射 5 枚扇形火球。
+    *   **导弹 (Missile):** 扩展至 4 级，拥有独立的掉落图标和 4 阶飞行外观。伤害随级别大幅提升（Lv1=30, Lv2=60, Lv3=90, Lv4=120）。
+*   **怪物受击闪避 (Evasion Mechanics):** 非 Boss 怪物在首次受到非致命伤害时，会随机触发 6 种闪避行为之一（加速逃跑、斜向规避、上下移动或无视）。
+*   **击杀特效 (Death FX):** 击杀怪物时会触发高亮的红/黄/橙色粒子爆炸 (Particle Explosion) 反馈。
+
+### 6.4 怪物与 Boss (Monsters & Bosses)
+*   **龙形 Boss (Dragon-Boss):** 引入新的 `dragon-boss.png` 替代原本的关底牛怪。
+*   **多重最终 Boss (Multiple Final Bosses):** 第 10 关底不再是单只 Boss，而是同时生成 2 到 3 只龙 Boss（梦魇模式下为 6 到 9 只），全部击杀后生成最终视频检查点。
+*   **第 9/10 关强敌:** 在最后两个关卡的飞行过程中，会随机生成与关底 Boss 属性完全一致的龙形精英怪横穿屏幕。
+
+### 6.5 属性与结算 (Stats & End Screen)
+*   **生命值硬上限 (Strict Health Cap):** 龙的生命值严格受限于 100 点，受击会同时导致主副武器降级。
+*   **溢出奖励 (Max-Upgrade Score Bonus):** 在满血（100）时拾取医疗包，或在主/副武器满级（Lv4）时拾取对应武器升级包，不再浪费，而是直接转换为 50 分的得分奖励。
+*   **通关 UI 调整 (Resume Screen Layout):** 优化了终局结算的 React 页面排版，个人档案区域占比 3/4，排行榜区域占比 1/4。

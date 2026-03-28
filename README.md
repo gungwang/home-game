@@ -30,12 +30,26 @@ npm install
 npm run dev
 ```
 
+### 本地服务器启动
+
+1. 安装依赖：`npm install`
+2. 启动本地开发服务器：`npm run dev`
+3. 在浏览器打开：`http://localhost:5173`
+
+如果 5173 端口被占用，Vite 会自动切换到其他可用端口，终端里会显示实际访问地址。
+
 ### 构建部署
 
 ```bash
 npm run build
 npm run preview
 ```
+
+![alt text](image-1.png)
+![alt text](image-2.png)
+![alt text](image-3.png)
+![alt text](image.png)
+
 
 ---
 
@@ -69,9 +83,22 @@ npm install
 npm run dev
 ```
 
+### Run Local Server
+
+1. Install dependencies: `npm install`
+2. Start the local development server: `npm run dev`
+3. Open: `http://localhost:5173`
+
+If port 5173 is already in use, Vite will automatically choose another available port and print the actual local URL in the terminal.
+
 ### Build & Deploy
 
 ```bash
 npm run build
 npm run preview
 ```
+
+![alt text](image-1.png)
+![alt text](image-2.png)
+![alt text](image-3.png)
+![alt text](image.png)

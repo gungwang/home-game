@@ -1,0 +1,15 @@
+[[rule]]
+toolName = "run_shell_command"
+commandPrefix = [
+  "git ",
+  "npm run build",
+  "npm test",
+  "sed ",
+  "cat ",
+  "grep ",
+  "ls ",
+  "node "
+]
+decision = "allow"
+priority = 100
+description = "Auto-allow common development shell commands for this project"

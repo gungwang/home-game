@@ -16,9 +16,9 @@ export default function ResumeScreen({ score, onRestart, highScores }: ResumeScr
         <h1 className="text-5xl text-cyan-500 mb-2 tracking-widest uppercase drop-shadow-[0_0_10px_rgba(0,255,255,0.8)] text-center shrink-0">System Override Complete</h1>
         <div className="text-3xl text-yellow-400 mb-6 font-bold animate-pulse text-center shrink-0">FINAL SCORE: {score}</div>
 
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0 mb-6">
-          {/* Personnel File Section — 2/3 width */}
-          <div className="lg:col-span-2 border border-cyan-800 p-8 bg-black/50 backdrop-blur flex flex-col overflow-y-auto">
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-0 mb-6">
+          {/* Personnel File Section — 3/4 width */}
+          <div className="lg:col-span-3 border border-cyan-800 p-8 bg-black/50 backdrop-blur flex flex-col overflow-y-auto">
             <div className="flex justify-between items-start border-b border-cyan-900 pb-4 mb-6">
               <div>
                 <h3 className="text-5xl font-bold text-white mb-2 drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">GUNG WANG</h3>
@@ -67,7 +67,7 @@ export default function ResumeScreen({ score, onRestart, highScores }: ResumeScr
             </div>
           </div>
 
-          {/* Leaderboard Section — 1/3 width */}
+          {/* Leaderboard Section — 1/4 width */}
           <div className="lg:col-span-1 border border-yellow-800 p-6 bg-black/50 backdrop-blur flex flex-col overflow-y-auto">
             <h3 className="text-2xl font-bold text-yellow-500 mb-4 border-b border-yellow-900 pb-2 uppercase tracking-tighter shrink-0">
               TOP 10 LOCAL RECORDS
