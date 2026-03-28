@@ -130,6 +130,7 @@ export default class MainScene extends Phaser.Scene {
     this.load.svg('missile_lv1', 'missile_lv1.svg', { width: 40, height: 20 });
     this.load.svg('missile_lv2', 'missile_lv2.svg', { width: 60, height: 30 });
     this.load.svg('missile_lv3', 'missile_lv3.svg', { width: 80, height: 40 });
+    this.load.svg('missile_lv4', 'missile_lv4.svg', { width: 100, height: 50 });
     this.load.svg('missile_upgrade', 'missile_upgrade.svg', { width: 30, height: 30 });
     this.load.svg('ammoCrate', 'ammoCrate.svg', { width: 30, height: 30 });
 
@@ -645,10 +646,16 @@ export default class MainScene extends Phaser.Scene {
     } else if (this.fireballLevel === 2) {
       fire(this.dragon.x + 20, this.dragon.y - 10);
       fire(this.dragon.x + 20, this.dragon.y + 10);
-    } else {
+    } else if (this.fireballLevel === 3) {
       fire(this.dragon.x + 20, this.dragon.y, -0.1);
       fire(this.dragon.x + 20, this.dragon.y, 0);
       fire(this.dragon.x + 20, this.dragon.y, 0.1);
+    } else {
+      fire(this.dragon.x + 20, this.dragon.y, -0.2);
+      fire(this.dragon.x + 20, this.dragon.y, -0.1);
+      fire(this.dragon.x + 20, this.dragon.y, 0);
+      fire(this.dragon.x + 20, this.dragon.y, 0.1);
+      fire(this.dragon.x + 20, this.dragon.y, 0.2);
     }
   }
 
@@ -660,9 +667,9 @@ export default class MainScene extends Phaser.Scene {
       const missile = this.missiles.get(this.dragon.x + 20, this.dragon.y) as Phaser.Physics.Arcade.Sprite | null;
       if (missile) {
         missile.enableBody(true, this.dragon.x + 20, this.dragon.y, true, true);
-        const tex = this.missileLevel === 1 ? 'missile_lv1' : (this.missileLevel === 2 ? 'missile_lv2' : 'missile_lv3');
-        const w = this.missileLevel === 1 ? 40 : (this.missileLevel === 2 ? 60 : 80);
-        const h = this.missileLevel === 1 ? 20 : (this.missileLevel === 2 ? 30 : 40);
+        const tex = 'missile_lv' + this.missileLevel;
+        const w = 40 + (this.missileLevel - 1) * 20;
+        const h = 20 + (this.missileLevel - 1) * 10;
         missile.setTexture(tex);
         missile.setDisplaySize(w, h);
         missile.body?.setSize(w * 0.75, h * 0.75);
@@ -766,7 +773,7 @@ export default class MainScene extends Phaser.Scene {
 
   handleWeaponUpgradePickup(_dragon: Phaser.Physics.Arcade.Sprite, upgrade: Phaser.Physics.Arcade.Sprite) {
     upgrade.disableBody(true, true);
-    if (this.fireballLevel < 3) {
+    if (this.fireballLevel < 4) {
       this.fireballLevel++;
     } else {
       this.score += 50;
@@ -779,7 +786,7 @@ export default class MainScene extends Phaser.Scene {
 
   handleMissileUpgradePickup(_dragon: Phaser.Physics.Arcade.Sprite, upgrade: Phaser.Physics.Arcade.Sprite) {
     upgrade.disableBody(true, true);
-    if (this.missileLevel < 3) {
+    if (this.missileLevel < 4) {
       this.missileLevel++;
     } else {
       this.score += 50;
