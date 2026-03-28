@@ -29,3 +29,37 @@
 *   由于 Phaser 的游戏实例一直存在于 `<GameCanvas />` 中，当 React 重新渲染并把 `isGameOver` 设为 false 时，我们需要让 Phaser 的当前 Scene 重新启动。
 *   **方案:** 在 `App.tsx` 的 `handleRestart` 中，触发 `GameEvents.emit('restart-game')`。
 *   在 `MainScene.ts` 中，如果是 Game Over 状态，监听该事件，当收到事件时调用 `this.scene.restart()` 来重置整个场景的状态（包括血量、弹药、分数和实体组）。
+
+---
+
+# Dragon vs New York: Resume & End Screen Update Design
+
+## 1. Goal
+Update the existing Game Over (resume) screen to better display the player's final score, provide a restart option, and showcase the specified personal resume information.
+
+## 2. Requirements
+*   **Display final score:** Show the player's total score in a prominent position.
+*   **Restart button:** Add a "Restart Game" button that resets game state and returns to the initial game screen.
+*   **Resume information update:**
+    *   Name: `Gung Wang`
+    *   Title: `AI Software Engineer`
+    *   Add a hyperlink to the personal website: `bio.gungwang.com`
+
+## 3. Component Update Design
+Primary changes to `src/components/ResumeScreen.tsx` and `src/App.tsx`.
+
+*   **`ResumeScreen.tsx`:**
+    *   **Props:** Add `score` (number) and `onRestart` (() => void) properties.
+    *   **UI Layout:**
+        *   Top area: "GAME OVER" or "MISSION COMPLETE" heading.
+        *   Below: "Final Score: [score]" with cyberpunk glowing text.
+        *   Resume section: Updated name, title, and a prominent `<a href="https://bio.gungwang.com" target="_blank">bio.gungwang.com</a>` link with glowing hover effect.
+        *   Bottom: A "RESTART GAME" button with cyberpunk-styled border and hover animation.
+*   **`App.tsx`:**
+    *   **State management:** When `game-over` fires, save the current `score` state and pass it to `ResumeScreen`. Since the score is currently maintained inside `UIOverlay`, the score state needs to be lifted up to `App.tsx`, or `App.tsx` should also listen to the `score-changed` event.
+    *   **Restart logic:** Implement a `handleRestart` function that sets `isGameOver` to false and may need to emit an event to notify Phaser to restart `MainScene`.
+
+## 4. Game Restart Logic (`MainScene.ts`)
+*   Since the Phaser game instance persists inside `<GameCanvas />`, when React re-renders and sets `isGameOver` to false, the current Phaser Scene needs to restart.
+*   **Approach:** In `App.tsx`'s `handleRestart`, emit `GameEvents.emit('restart-game')`.
+*   In `MainScene.ts`, if the game is in Game Over state, listen for this event and call `this.scene.restart()` to reset the entire scene state (health, ammo, score, and entity groups).

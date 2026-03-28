@@ -70,3 +70,78 @@
 3.  **Phase 3: 核心循环与视频集成:** 实现到达大楼停顿的逻辑，精准嵌入 YouTube 播放器，完成“打怪-看视频-下一关”的闭环。
 4.  **Phase 4: 机制完善与多媒体:** 引入导弹武器、天气系统、得分统计、最终的简历页面。
 5.  **Phase 5: 优化与打磨:** 寻找/制作免费的美术资产，调整游戏手感，平衡数值，修复 Bug。
+
+---
+
+# Dragon vs New York – Manhattan: Web 2D Game Design Document
+
+## 1. Overview & Goals
+
+A web-based 2D side-scrolling shooter with a Pixel Art Cyberpunk visual style. The player controls a dragon descending upon Manhattan to eliminate mutant farm animals that have taken over the city. At specific checkpoint buildings, the player watches YouTube music videos from their personal channel. The game concludes by presenting the player's professional resume.
+
+**Core Features:**
+*   **Visual Style:** Pixel art combined with cyberpunk neon palette (black / white / red / yellow / blue / green with transparent transitions), featuring weather, day/night, and seasonal changes.
+*   **Game Pacing:** Medium-length sessions (3–5 minutes per stage), approximately 5–8 stages, total playthrough 10–30 minutes.
+*   **Multimedia Integration:** Designated building surfaces serve as "video walls" playing randomly selected YouTube MVs. Watching earns bonus score.
+*   **Controls:** Keyboard and mouse for dragon flight and two attack modes.
+
+## 2. System Architecture (React + Phaser.js)
+
+A hybrid "Web UI shell + Game canvas" architecture for seamless blending of gameplay and web content.
+
+*   **Frontend Framework (React / TypeScript):**
+    *   Manages the outer container, main menu, in-game UI overlay (score, health, ammo), a fullscreen YouTube video modal, and the post-game resume page.
+    *   Manages global game state (total score, current stage, list of viewed videos).
+*   **Game Engine (Phaser 3):**
+    *   Handles 2D rendering (parallax scrolling backgrounds, pixel characters, projectile effects).
+    *   Manages Arcade Physics collision detection (dragon flight boundaries, player–enemy collisions, bullet hit detection, flying through building gaps).
+    *   Drives the weather particle system (rain, snow, neon flicker animations).
+
+## 3. Game Mechanics & Level Design
+
+### 3.1 Characters & Controls
+*   **Dragon (Player Character):**
+    *   **Movement:** WASD or arrow keys for up/down/left/right flight.
+    *   **Primary Attack (Dragon Breath Fireball):** Left mouse button, unlimited ammo, straight/slight arc trajectory, low damage.
+    *   **Heavy Attack (Dragon Spike Missile):** Right mouse button or designated key, limited ammo (requires pickup), homing or high-burst AOE, high damage.
+*   **Monsters (Enemies):**
+    *   Mutated farm animals (chicken, duck, pig, sheep, cow) in pixel-cartoon style. Different animals have different health, movement patterns, and kill scores.
+
+### 3.2 Level Flow (Story Mode — Linear)
+A linear narrative from Central Park to the Statue of Liberty, with landmark buildings appearing in an abstracted geographic order.
+
+1.  **Scene Scrolling:** The Manhattan skyline scrolls leftward. The dragon moves freely within the left portion of the screen, shooting oncoming monsters.
+2.  **Building Interaction:** Certain landmark buildings have physical collision boundaries. The dragon can (or must) navigate through gaps / windows in buildings, adding flight skill challenge.
+3.  **Checkpoints:**
+    *   After every 3–5 minutes of flight, scrolling stops at a specific landmark building (the stage endpoint).
+    *   The building facade features a large, solid-color screen area.
+    *   The game pauses; the React layer precisely overlays a YouTube iframe on this area to play a randomly selected MV.
+    *   After the video ends or the player skips it (with differing score rewards), stage score is tallied, scrolling resumes, and the next stage begins.
+4.  **Ending:** Upon reaching the Statue of Liberty and defeating the final boss, the screen transitions smoothly to a React-based professional resume page.
+
+### 3.3 Scoring System Balance
+*   **Combat Score:** Killing different-tier monsters yields base points. Kill streaks and high-difficulty kills (e.g., killing while navigating building gaps) grant multiplier bonuses.
+*   **Video Score:** Watching a full video earns a large fixed score bonus; skipping mid-way grants a proportional fraction.
+*   The ratio between the two should be tuned during testing to ensure players are motivated both to fight and to watch videos.
+
+## 4. Key Technical Implementation
+
+1.  **YouTube API Integration:**
+    *   Maintain a JSON list of 100+ video IDs.
+    *   Use the `react-youtube` library or the official Iframe API; listen to `onStateChange` (ended = `0`).
+    *   Position the player precisely over the Phaser Canvas building screen area using absolute positioning and `z-index`.
+    *   YouTube JSON files: `/home/wang/projects/home-game-2/docs/youtube-json/`
+2.  **Phaser ↔ React Communication:**
+    *   Via an EventEmitter or direct function callbacks: Phaser emits an event when reaching a building; React shows the video.
+    *   When the React video ends, it notifies Phaser to resume the game loop (`scene.resume()`).
+3.  **Parallax Scrolling & Weather System:**
+    *   Multiple `TileSprite` layers in Phaser render background buildings at different depths (far = slow, near = fast).
+    *   Phaser's Particle Emitter with alpha and Blend Modes creates neon glow and rain/snow weather effects.
+
+## 5. Development Phases (Reference Roadmap)
+
+1.  **Phase 1 — Foundation:** Initialize React project, integrate Phaser engine, implement basic dragon movement and primary attack.
+2.  **Phase 2 — Scene & Enemies:** Implement parallax scrolling backgrounds, add monster spawn logic and collision detection.
+3.  **Phase 3 — Core Loop & Video Integration:** Implement building-checkpoint pause logic, precisely embed the YouTube player, complete the "fight → watch video → next stage" loop.
+4.  **Phase 4 — Mechanics & Multimedia:** Introduce missile weapon, weather system, score tracking, and the final resume page.
+5.  **Phase 5 — Polish & Optimization:** Source/create free art assets, tune game feel, balance numbers, fix bugs.

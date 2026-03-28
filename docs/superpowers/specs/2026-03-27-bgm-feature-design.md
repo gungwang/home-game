@@ -25,3 +25,33 @@
 ## 3. 注意事项 (防范浏览器自动播放限制)
 现代浏览器（Chrome/Safari）严格禁止未经过用户交互（User Gesture）的网页自动播放带声音的媒体。
 *   **策略:** 游戏的初始 BGM 不应在 `MainScene` 刚加载就立刻播放。我们应该在用户的**第一次按键 (WASD) 或鼠标点击 (射击)** 时，检查 BGM 是否启动，如果未启动则启动它。这能完美绕过自动播放拦截。
+
+---
+
+# Dragon vs New York: Background Music (BGM) Feature Design
+
+## 1. Goal
+During gameplay (flying & combat), use the existing YouTube video list to randomly play background music (BGM) with the video hidden (audio-only output). When the player reaches a checkpoint building and the main video modal (VideoModal) opens, stop the BGM. When the main video closes and gameplay resumes, randomly select a new BGM track and play it at 1/3 of normal volume (~33%).
+
+## 2. Architecture & Component Design
+Since the game's core state is bound to the UI layer (React), and the YouTube Iframe API depends heavily on the DOM and React lifecycle, the BGM player is best implemented as a hidden React component.
+
+*   **Component `BackgroundMusicPlayer` (React):**
+    *   **Placement:** Mounted alongside `GameCanvas` in `App.tsx`.
+    *   **UI:** Absolutely positioned with `width: 0, height: 0, opacity: 0`, or an outer container set to `display: none` (some browsers require the iframe to have a minimal size to play — a 1×1 pixel iframe hidden offscreen may be used).
+    *   **State:** Receives `isPlaying` (boolean) and `videoId` (string) as props, or internally listens to `GameEvents` to decide whether to play.
+    *   **Controls:**
+        *   On mount / game resume, randomly select a video ID and call `youtubePlayer.playVideo()`.
+        *   In the `onReady` and `onPlay` event handlers, force volume to 33% via `youtubePlayer.setVolume(33)`.
+        *   Listen to the `onEnd` event — if a track finishes but the game hasn't ended, automatically select and play the next random track.
+
+*   **Event Coordination (`GameEvents`):**
+    *   New events: `bgm-play` (with `videoId` parameter), `bgm-stop`.
+    *   In `MainScene.ts`:
+        *   At the end of `create()`, or on the user's first interaction, emit `bgm-play` (browsers restrict autoplay of media with audio — BGM may need to start only after the user's first keypress or click).
+        *   Before triggering the building video checkpoint (before calling `this.scene.pause()`), emit `bgm-stop`.
+        *   When resuming from the building video checkpoint (inside the `video-complete` listener), emit `bgm-play` with a randomly selected new `videoId`.
+
+## 3. Notes (Browser Autoplay Restrictions)
+Modern browsers (Chrome / Safari) strictly prohibit autoplaying media with audio without a prior user gesture.
+*   **Strategy:** The initial BGM should NOT start playing as soon as `MainScene` loads. Instead, on the **first keypress (WASD) or mouse click (shoot)**, check whether BGM has been started — if not, start it. This cleanly bypasses autoplay restrictions.

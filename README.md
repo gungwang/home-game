@@ -1,17 +1,77 @@
-计划开发一个网页2D横版游戏，飞龙大战纽约-麦哈顿城，以赛博朋克2077游戏的风格和主题为核心。游戏的目的是结合我的Youtube频道100多个音乐视频，在游戏中，玩家完成一个小关卡，就播放一个视频。打怪和观看视频都能获得积分。
-1、地图为纽约-麦哈顿城，从中央公园到自由女神像，50-100高楼大夏，要有纽约的标志性建筑。
-2、故事背景为，各种可爱的家畜动物，如鸡鸭猪羊牛突变成了妖怪，占领纽约城。神龙降临，在空中飞行，消灭大夏上的妖怪。
-3、游戏颜色：黑色、白色、淡红、淡黄、淡蓝、淡绿。可以有透明过渡效果。有天气、四季、白天黑夜。
-4、角色为卡通形象，可爱、简单。
-5、游戏以深色背景，但不恐怖。以轻松休闲为主。主题要优美、简洁。
-6、主色神龙有两种远程攻击，龙息火球普通攻击，无限弹药；龙刺导弹重击，有限弹药。击杀妖怪，得分。妖怪分级，得分有不同。
-7、我有100多个MV视频，在youtube频道。结合这些MV，每过一小关，就播放一首视频在大楼表面。观看完视频，也可得分。杀怪得分和视频得分要平衡。
-8、游戏通关 10-30分钟。第一次网页刷新，视频都不同（随机刷新）。
-9、这将是我的个人网站的首页，通关后，显示我的个人信息，以工作简历为主。
-10、键盘和鼠标操作游戏。
-11、如果需要游戏素材，就到网络上搜索下载。
-https://craftpix.net/freebies/?srsltid=AfmBOopE6S8erUV3fJBFBbf5_bMQKr3WMyR52ZMuIX47dd3V_lfQEYEa
-https://itch.io/game-assets/free
-https://opengameart.org/
-https://dotown.maeda-design-room.net/
-https://kenney.nl/assets
+# 飞龙大战纽约 | Dragon vs New York
+
+## 简体中文
+
+赛博朋克风格的2D横版网页射击游戏，基于 React + Phaser 3 + TypeScript 构建。
+
+玩家操控神龙在纽约曼哈顿上空飞行，消灭变异家畜妖怪，穿越高楼大厦，每过一关观看一个YouTube音乐视频。通关后展示个人简历。
+
+### 特性
+
+- **赛博朋克视觉风格** — 深色背景、霓虹配色、天气系统（雨、雪、闪电）、日夜循环（白天→黄昏→夜晚→黎明）
+- **双武器系统** — 龙息火球（无限弹药）+ 龙刺导弹（有限弹药），武器可升级
+- **YouTube视频集成** — 每过一关在大楼表面播放YouTube MV，观看得分
+- **Boss战** — 第9关后触发Boss战，击败Boss通关
+- **个人简历展示** — 通关后显示专业简历和排行榜
+- **键盘操控** — 方向键/WASD移动，空格发射火球，M发射导弹
+
+### 技术栈
+
+- **前端框架**: React 19 + TypeScript
+- **游戏引擎**: Phaser 3（Arcade物理引擎）
+- **构建工具**: Vite
+- **样式**: Tailwind CSS
+- **视频播放**: react-youtube
+
+### 快速开始
+
+```bash
+npm install
+npm run dev
+```
+
+### 构建部署
+
+```bash
+npm run build
+npm run preview
+```
+
+---
+
+## English
+
+A cyberpunk-themed 2D side-scrolling web shooter built with React + Phaser 3 + TypeScript.
+
+The player controls a dragon flying over Manhattan, battling mutant farm animals, weaving through skyscrapers, and watching a YouTube music video after each checkpoint. A professional resume is displayed upon completion.
+
+### Features
+
+- **Cyberpunk visuals** — Dark backgrounds, neon palette, weather system (rain, snow, lightning), day/night cycle (Day → Sunset → Night → Sunrise)
+- **Dual weapon system** — Dragon breath fireballs (unlimited) + Dragon spike missiles (limited), with weapon upgrades
+- **YouTube video integration** — A YouTube MV plays on building surfaces after each checkpoint, earning bonus score
+- **Boss battle** — Boss fight triggers after checkpoint 9; defeat the boss to win
+- **Resume showcase** — Professional resume and leaderboard displayed on game completion
+- **Keyboard controls** — Arrow keys / WASD to move, Space for fireballs, M for missiles
+
+### Tech Stack
+
+- **Frontend**: React 19 + TypeScript
+- **Game Engine**: Phaser 3 (Arcade Physics)
+- **Build Tool**: Vite
+- **Styling**: Tailwind CSS
+- **Video Player**: react-youtube
+
+### Quick Start
+
+```bash
+npm install
+npm run dev
+```
+
+### Build & Deploy
+
+```bash
+npm run build
+npm run preview
+```
