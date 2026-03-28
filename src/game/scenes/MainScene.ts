@@ -269,6 +269,7 @@ export default class MainScene extends Phaser.Scene {
 
       this.isPaused = false;
       this.scene.resume();
+      if (this.currentLevel <= 10) this.showLevelTitle();
       GameEvents.emit('bgm-play'); // Resume BGM
 
       const timeBonus = watchedSeconds * 2;
@@ -358,6 +359,8 @@ export default class MainScene extends Phaser.Scene {
     g.strokeRect(0,0,100,100);
     g.generateTexture('hologramScreen', 100, 100);
     g.destroy();
+
+    this.showLevelTitle();
   }
 
   changeWeather() {
@@ -505,6 +508,34 @@ export default class MainScene extends Phaser.Scene {
         duration: 1000,
         onComplete: () => container.destroy()
       });
+    });
+  }
+
+  showLevelTitle() {
+    if (this.currentLevel > 10) return;
+    
+    const config = LEVELS[this.currentLevel - 1];
+    const width = this.sys.canvas.width;
+    const height = this.sys.canvas.height;
+
+    const text = this.add.text(width / 2, height / 2, `LEVEL ${this.currentLevel}\n${config.name}`, {
+      fontFamily: 'monospace',
+      fontSize: '48px',
+      color: '#00ffff',
+      stroke: '#ff00ff',
+      strokeThickness: 6,
+      align: 'center'
+    }).setOrigin(0.5).setDepth(4500).setScrollFactor(0);
+
+    text.setAlpha(0);
+
+    this.tweens.add({
+      targets: text,
+      alpha: 1,
+      duration: 500,
+      yoyo: true,
+      hold: 2000,
+      onComplete: () => text.destroy()
     });
   }
 
