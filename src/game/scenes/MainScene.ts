@@ -929,6 +929,7 @@ export default class MainScene extends Phaser.Scene {
       tv.setDisplaySize(60, 45); // Make it slightly smaller
       tv.setDepth(1);
       this.tvs.add(tv);
+      screenBuilding.setData('linkedTv', tv);
     }
   }
 
@@ -1012,9 +1013,9 @@ export default class MainScene extends Phaser.Scene {
     }
 
     // Update TV positions to follow buildings
-    this.screenBuildings.children.each((sb, index) => {
+    this.screenBuildings.children.each((sb) => {
       const building = sb as Phaser.Physics.Arcade.Sprite;
-      const tv = this.tvs.getChildren()[index] as Phaser.GameObjects.Image;
+      const tv = building.getData('linkedTv') as Phaser.GameObjects.Image;
       const landmark = building.getData('linkedLandmark') as Phaser.GameObjects.Sprite;
       const offsetX = building.getData('landmarkOffsetX') as number;
       
