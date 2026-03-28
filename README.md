@@ -1,5 +1,4 @@
-# 飞龙大战纽约 | Dragon vs New York
-
+# 飞龙大战纽约 | Dragon vs New York | AI-Driven 开发
 ## 简体中文
 
 赛博朋克风格的2D横版网页射击游戏，基于 React + Phaser 3 + TypeScript 构建。
