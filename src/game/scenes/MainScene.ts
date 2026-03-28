@@ -3,6 +3,19 @@ import { GameEvents } from '../GameEvents';
 
 type EnvState = 'DAY' | 'SUNSET' | 'NIGHT' | 'SUNRISE';
 
+const LEVEL_COLORS = [
+  0x0a1020, // 1: Dark Blue
+  0x200505, // 2: Dark Red
+  0x052005, // 3: Dark Green
+  0x201000, // 4: Dark Orange
+  0x150520, // 5: Dark Purple
+  0x052020, // 6: Dark Cyan
+  0x1a0a00, // 7: Dark Brown
+  0x101510, // 8: Dark Slate
+  0x151515, // 9: Dark Gray
+  0x250000  // 10: Deep Red / Black
+];
+
 const ENV_STYLES: Record<EnvState, { sky: number; farTint: number; nearTint: number; cloudAlpha: number; darknessAlpha: number }> = {
   DAY: {
     sky: 0x161b33,
@@ -171,6 +184,14 @@ export default class MainScene extends Phaser.Scene {
     skyG.destroy();
 
     this.sky = this.add.tileSprite(width / 2, height / 2, width, height, 'sky');
+
+    // Constant Far-Away Statue of Liberty
+    const farLiberty = this.add.image(width * 0.8, height * 0.6, 'statue_of_liberty');
+    farLiberty.setDisplaySize(80, 160); // Small, far away
+    farLiberty.setAlpha(0.15); // Faded into the distance
+    farLiberty.setScrollFactor(0); // Always visible in background
+    farLiberty.setDepth(-2.5); // Between sky and farBuildings
+    
 
     // Distant City Layer
     this.farBuildings = this.add.tileSprite(width / 2, height - 200, width, 400, 'city_far');
@@ -526,7 +547,8 @@ export default class MainScene extends Phaser.Scene {
 
   applyEnvironmentStyle() {
     const style = ENV_STYLES[this.currentEnvState];
-    this.sky.setTint(style.sky);
+    const levelSkyColor = LEVEL_COLORS[Math.min(this.currentLevel - 1, 9)];
+    this.sky.setTint(levelSkyColor);
     this.farBuildings.setTint(style.farTint);
     this.nearBuildings.setTint(style.nearTint);
     this.darknessOverlay.setAlpha(style.darknessAlpha);
