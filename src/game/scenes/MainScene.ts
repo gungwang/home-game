@@ -89,6 +89,7 @@ export default class MainScene extends Phaser.Scene {
   private enemyCounter: number = 0;
   private isBossLevel: boolean = false;
   private tvs!: Phaser.GameObjects.Group;
+  private landmarksGroup!: Phaser.GameObjects.Group;
   private fireballSfx!: Phaser.Sound.BaseSound;
   private killSfx!: Phaser.Sound.BaseSound;
 
@@ -277,6 +278,7 @@ export default class MainScene extends Phaser.Scene {
       GameEvents.emit('score-changed', this.score);
       this.screenBuildings.clear(true, true);
       this.tvs.clear(true, true);
+      if (this.landmarksGroup) this.landmarksGroup.clear(true, true);
 
       this.videosWatched++;
       if (this.videosWatched >= 10) {
@@ -877,20 +879,45 @@ export default class MainScene extends Phaser.Scene {
   }
 
   spawnCheckpoint() {
+    if (this.currentLevel > 10) return;
+
+    const config = LEVELS[this.currentLevel - 1];
     const x = this.sys.canvas.width + 200;
-    const y = this.sys.canvas.height / 2;
-    const screenBuilding = this.screenBuildings.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
+    const y = this.sys.canvas.height - (config.height / 2); // Anchor to ground
+
+    // 1. Visual Landmark
+    const landmark = this.add.sprite(x, y, config.key);
+    landmark.setDisplaySize(config.width, config.height);
+    landmark.setDepth(-2);
+    
+    if (!this.landmarksGroup) {
+      this.landmarksGroup = this.add.group();
+    }
+    this.landmarksGroup.add(landmark);
+
+    // 2. Physics Checkpoint / Screen Box
+    const screenX = x + config.screenBox.x;
+    const screenY = y + config.screenBox.y;
+    
+    const screenBuilding = this.screenBuildings.get(screenX, screenY) as Phaser.Physics.Arcade.Sprite | null;
     if (screenBuilding) {
-      screenBuilding.enableBody(true, x, y, true, true);
-      screenBuilding.setTexture('screenBuilding');
+      screenBuilding.enableBody(true, screenX, screenY, true, true);
+      
+      screenBuilding.setTexture('hologramScreen');
+      screenBuilding.setDisplaySize(config.screenBox.width, config.screenBox.height);
+      
       if (!screenBuilding.body) this.physics.add.existing(screenBuilding);
       (screenBuilding.body as Phaser.Physics.Arcade.Body).setImmovable(true);
       screenBuilding.setVelocityX(-100);
       screenBuilding.setDepth(-1);
 
-      // Add TV icon
-      const tv = this.add.image(x, y - 100, 'tv');
-      tv.setDisplaySize(120, 90);
+      // Link landmark and save offset to avoid recalculating with wrong level later
+      screenBuilding.setData('linkedLandmark', landmark);
+      screenBuilding.setData('landmarkOffsetX', config.screenBox.x);
+
+      // 3. TV Icon
+      const tv = this.add.image(screenX, screenY - (config.screenBox.height/2) - 30, 'tv');
+      tv.setDisplaySize(60, 45); // Make it slightly smaller
       tv.setDepth(1);
       this.tvs.add(tv);
     }
@@ -979,8 +1006,12 @@ export default class MainScene extends Phaser.Scene {
     this.screenBuildings.children.each((sb, index) => {
       const building = sb as Phaser.Physics.Arcade.Sprite;
       const tv = this.tvs.getChildren()[index] as Phaser.GameObjects.Image;
-      if (building && tv) {
-        tv.x = building.x;
+      const landmark = building.getData('linkedLandmark') as Phaser.GameObjects.Sprite;
+      const offsetX = building.getData('landmarkOffsetX') as number;
+      
+      if (building) {
+        if (tv) tv.x = building.x;
+        if (landmark) landmark.x = building.x - offsetX;
       }
       return true;
     });
