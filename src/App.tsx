@@ -61,11 +61,11 @@ export default function App() {
     }
   }, [score]) // Re-bind effect when score changes to capture latest score in handleGameOver closure
 
-  const handleVideoComplete = () => {
+  const handleVideoComplete = (watchedDuration: number) => {
     setVideoId(null)
     // Small delay to ensure modal is gone before BGM starts fading in
     setTimeout(() => {
-      GameEvents.emit('video-complete')
+      GameEvents.emit('video-complete', watchedDuration)
     }, 100)
   }
 

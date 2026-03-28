@@ -1,6 +1,39 @@
 import Phaser from 'phaser';
 import { GameEvents } from '../GameEvents';
 
+type EnvState = 'DAY' | 'SUNSET' | 'NIGHT' | 'SUNRISE';
+
+const ENV_STYLES: Record<EnvState, { sky: number; farTint: number; nearTint: number; cloudAlpha: number; darknessAlpha: number }> = {
+  DAY: {
+    sky: 0x161b33,
+    farTint: 0x121523,
+    nearTint: 0x1a1f30,
+    cloudAlpha: 0.12,
+    darknessAlpha: 0.7
+  },
+  SUNSET: {
+    sky: 0x2c1414,
+    farTint: 0x1d1113,
+    nearTint: 0x24161a,
+    cloudAlpha: 0.1,
+    darknessAlpha: 0.56
+  },
+  NIGHT: {
+    sky: 0x020205,
+    farTint: 0x050508,
+    nearTint: 0x0a0b10,
+    cloudAlpha: 0.08,
+    darknessAlpha: 0.75
+  },
+  SUNRISE: {
+    sky: 0x1a1a2e,
+    farTint: 0x151527,
+    nearTint: 0x1d1d34,
+    cloudAlpha: 0.1,
+    darknessAlpha: 0.58
+  }
+};
+
 export default class MainScene extends Phaser.Scene {
   private dragon!: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -37,13 +70,24 @@ export default class MainScene extends Phaser.Scene {
   private fireballSfx!: Phaser.Sound.BaseSound;
   private killSfx!: Phaser.Sound.BaseSound;
 
+  // Upgrade & Health Properties
+  private fireballLevel: number = 1;
+  private maxHealth: number = 100;
+  private weaponUpgrades!: Phaser.Physics.Arcade.Group;
+  private healthPacks!: Phaser.Physics.Arcade.Group;
+
   // Environmental Properties
   private envCycleTimer: number = 0;
-  private currentEnvState: 'DAY' | 'SUNSET' | 'NIGHT' | 'SUNRISE' = 'DAY';
+  private currentEnvState: EnvState = 'DAY';
   private weatherEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
   private cloudsGroup!: Phaser.GameObjects.Group;
+  private darknessOverlay!: Phaser.GameObjects.Rectangle;
+  private sunGlow!: Phaser.GameObjects.Ellipse;
   private lightningOverlay!: Phaser.GameObjects.Rectangle;
   private lastLightningTime: number = 0;
+  private lastDamageTime: number = 0;
+  private readonly DAMAGE_COOLDOWN: number = 500; // ms invincibility after taking damage
+  private prevEnvState: EnvState = 'DAY';
 
   constructor() {
     super({ key: 'MainScene' });
@@ -69,6 +113,8 @@ export default class MainScene extends Phaser.Scene {
     this.load.svg('city_near', 'city_near.svg');
     this.load.svg('cloud', 'cloud.svg');
     this.load.svg('snow_particle', 'snow_particle.svg');
+    this.load.svg('weapon_upgrade', 'weapon_upgrade.svg');
+    this.load.svg('health_pack', 'health_pack.svg');
 
     // Audio SFX (Using WAV for lower latency and better sync)
     this.load.audio('fireballSfx', 'fireball.wav');
@@ -85,54 +131,67 @@ export default class MainScene extends Phaser.Scene {
 
     // Background Layer: Deep Space/Sky
     const skyG = this.add.graphics();
-    skyG.fillStyle(0xffffff, 1);
+    skyG.fillStyle(0x0a0c1a, 1);
     skyG.fillRect(0, 0, 100, height);
     skyG.generateTexture('sky', 100, height);
     skyG.destroy();
 
     this.sky = this.add.tileSprite(width / 2, height / 2, width, height, 'sky');
-    
+
     // Distant City Layer
     this.farBuildings = this.add.tileSprite(width / 2, height - 200, width, 400, 'city_far');
     this.farBuildings.setAlpha(0.4);
-    
+
     // Near City Layer
     this.nearBuildings = this.add.tileSprite(width / 2, height - 100, width, 400, 'city_near');
     this.nearBuildings.setAlpha(0.6);
 
+    // Robust global darkening layer so the world never becomes washed out.
+    this.darknessOverlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0)
+      .setDepth(4000)
+      .setScrollFactor(0);
+
+    // Apply dark palette immediately to avoid a bright first frame.
+    this.applyEnvironmentStyle();
+
     // Weather & Atmosphere Initialization
     this.cloudsGroup = this.add.group();
-    
-    // Rain texture placeholder
+
+    // Rain texture
     const rainG = this.add.graphics();
     rainG.fillStyle(0x00ffff, 0.5);
     rainG.fillRect(0, 0, 2, 10);
     rainG.generateTexture('rainParticle', 2, 10);
     rainG.destroy();
 
+    // Snow texture (small white dot)
+    const snowG = this.add.graphics();
+    snowG.fillStyle(0xffffff, 0.8);
+    snowG.fillCircle(3, 3, 3);
+    snowG.generateTexture('snowDot', 6, 6);
+    snowG.destroy();
+
     this.weatherEmitter = this.add.particles(0, 0, 'rainParticle', {
       x: { min: 0, max: width },
-      y: 0,
-      lifespan: 1500,
-      speedY: { min: 300, max: 500 },
-      speedX: -100,
-      scale: { start: 1, end: 0 },
-      quantity: 2,
-      blendMode: 'ADD'
+      y: -10,
+      lifespan: 2000,
+      speedY: { min: 200, max: 400 },
+      speedX: -80,
+      scale: { start: 0.8, end: 0 },
+      quantity: 0,
+      blendMode: 'ADD',
+      frequency: 50
     });
+
+    // Sun / moon glow for sunrise & sunset
+    this.sunGlow = this.add.ellipse(0, height * 0.4, 120, 120, 0xff6622, 0)
+      .setDepth(0.5).setBlendMode('ADD');
 
     this.lightningOverlay = this.add.rectangle(width/2, height/2, width, height, 0xffffff, 0)
       .setDepth(5000).setScrollFactor(0);
 
-    this.add.text(10, 10, 'Dragon Game Loaded', { color: '#0f0' }).setDepth(100);
-
-    // Initial Weather check
-    this.time.addEvent({
-      delay: 20000,
-      callback: this.changeWeather,
-      callbackScope: this,
-      loop: true
-    });
+    // Sync weather to environment state on each transition
+    this.applyWeatherForState();
 
     // Bullet Textures (Remaining placeholders)
     const enemyBulletGraphics = this.add.graphics();
@@ -175,10 +234,13 @@ export default class MainScene extends Phaser.Scene {
     this.screenBuildings = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, allowGravity: false, immovable: true });
     this.tvs = this.add.group();
 
+    this.weaponUpgrades = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: -1 });
+    this.healthPacks = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: -1 });
+
     // Clean up any lingering listeners
     GameEvents.off('video-complete');
 
-    const onVideoComplete = () => {
+    const onVideoComplete = (watchedSeconds: number = 0) => {
       // Ensure the scene hasn't been destroyed before attempting to resume
       if (!this.sys || !this.scene || !this.scene.manager) return;
 
@@ -186,7 +248,8 @@ export default class MainScene extends Phaser.Scene {
       this.scene.resume();
       GameEvents.emit('bgm-play'); // Resume BGM
 
-      this.score += 50; 
+      const timeBonus = watchedSeconds * 2;
+      this.score += (50 + timeBonus);
       GameEvents.emit('score-changed', this.score);
       this.screenBuildings.clear(true, true);
       this.tvs.clear(true, true);
@@ -199,11 +262,12 @@ export default class MainScene extends Phaser.Scene {
         this.spawnBoss();
       }
     };
-
     GameEvents.on('video-complete', onVideoComplete);
     const onRestartGame = () => {
       this.score = 0;
       this.health = 100;
+      this.maxHealth = 100;
+      this.fireballLevel = 1;
       this.missileAmmo = 3;
       this.videosWatched = 0;
       this.distanceTraveled = 0;
@@ -228,6 +292,8 @@ export default class MainScene extends Phaser.Scene {
     this.physics.add.collider(this.missiles, this.enemies, this.handleMissileHit as any, undefined, this);
     this.physics.add.collider(this.dragon, this.enemies, this.handlePlayerHit as any, undefined, this);
     this.physics.add.overlap(this.dragon, this.ammoCrates, this.handleAmmoPickup as any, undefined, this);
+    this.physics.add.overlap(this.dragon, this.weaponUpgrades, this.handleWeaponUpgradePickup as any, undefined, this);
+    this.physics.add.overlap(this.dragon, this.healthPacks, this.handleHealthPickup as any, undefined, this);
     this.physics.add.collider(this.dragon, this.buildings, this.handleBuildingHit as any, undefined, this);
     this.physics.add.collider(this.dragon, this.enemyBullets, this.handleEnemyBulletHit as any, undefined, this);
 
@@ -262,33 +328,92 @@ export default class MainScene extends Phaser.Scene {
   }
 
   changeWeather() {
-    const choices = ['RAIN', 'SNOW', 'CLEAR'];
-    const weather = choices[Phaser.Math.Between(0, choices.length - 1)];
-    
-    if (weather === 'RAIN') {
-      this.weatherEmitter.setTexture('rainParticle');
-      this.weatherEmitter.setConfig({
-        speedY: { min: 300, max: 500 },
-        quantity: 2
-      });
-    } else if (weather === 'SNOW') {
-      this.weatherEmitter.setTexture('snow_particle');
-      this.weatherEmitter.setConfig({
-        speedY: { min: 50, max: 150 },
-        quantity: 1
-      });
-    } else {
-      this.weatherEmitter.setConfig({
-        quantity: 0
-      });
+    // No longer used — weather is driven by applyWeatherForState()
+  }
+
+  applyWeatherForState() {
+    const w = this.sys.canvas.width;
+    const h = this.sys.canvas.height;
+
+    switch (this.currentEnvState) {
+      case 'DAY':
+        // Light rain
+        this.weatherEmitter.setTexture('rainParticle');
+        this.weatherEmitter.setConfig({
+          x: { min: 0, max: w },
+          y: -10,
+          lifespan: 2000,
+          speedY: { min: 200, max: 400 },
+          speedX: -80,
+          scale: { start: 0.6, end: 0 },
+          quantity: 1,
+          frequency: 80,
+          blendMode: 'ADD'
+        });
+        this.sunGlow.setAlpha(0);
+        break;
+
+      case 'SUNSET':
+        // No precipitation, warm sun glow on the right
+        this.weatherEmitter.setConfig({ quantity: 0, frequency: -1 });
+        this.sunGlow.setPosition(w - 60, h * 0.35);
+        this.sunGlow.setFillStyle(0xff4400, 0.35);
+        this.sunGlow.setScale(2, 1.5);
+        this.sunGlow.setAlpha(0.35);
+        break;
+
+      case 'NIGHT':
+        // Heavy snow + lightning handled in update()
+        this.weatherEmitter.setTexture('snowDot');
+        this.weatherEmitter.setConfig({
+          x: { min: 0, max: w },
+          y: -10,
+          lifespan: 4000,
+          speedY: { min: 40, max: 120 },
+          speedX: { min: -30, max: 30 },
+          scale: { start: 1, end: 0.3 },
+          quantity: 3,
+          frequency: 40,
+          blendMode: 'ADD'
+        });
+        this.sunGlow.setAlpha(0);
+        break;
+
+      case 'SUNRISE':
+        // Light snow / mist, warm glow on the left
+        this.weatherEmitter.setTexture('snowDot');
+        this.weatherEmitter.setConfig({
+          x: { min: 0, max: w },
+          y: -10,
+          lifespan: 3000,
+          speedY: { min: 30, max: 80 },
+          speedX: { min: -20, max: 20 },
+          scale: { start: 0.7, end: 0 },
+          quantity: 1,
+          frequency: 100,
+          blendMode: 'ADD'
+        });
+        this.sunGlow.setPosition(60, h * 0.35);
+        this.sunGlow.setFillStyle(0xcc44ff, 0.25);
+        this.sunGlow.setScale(2, 1.5);
+        this.sunGlow.setAlpha(0.25);
+        break;
     }
+  }
+
+  applyEnvironmentStyle() {
+    const style = ENV_STYLES[this.currentEnvState];
+    this.sky.setTint(style.sky);
+    this.farBuildings.setTint(style.farTint);
+    this.nearBuildings.setTint(style.nearTint);
+    this.darknessOverlay.setAlpha(style.darknessAlpha);
   }
 
   spawnCloud() {
     const x = this.sys.canvas.width + 100;
     const y = Phaser.Math.Between(50, 200);
     const cloud = this.add.image(x, y, 'cloud');
-    cloud.setAlpha(0.3);
+    cloud.setAlpha(ENV_STYLES[this.currentEnvState].cloudAlpha);
     cloud.setScale(Phaser.Math.FloatBetween(0.5, 1.5));
     cloud.setDepth(-1.5); // Between distant city and sky
     this.cloudsGroup.add(cloud);
@@ -296,7 +421,7 @@ export default class MainScene extends Phaser.Scene {
 
   triggerLightning() {
     if (this.currentEnvState !== 'NIGHT') return;
-    
+
     this.lightningOverlay.setAlpha(0.7);
     this.tweens.add({
       targets: this.lightningOverlay,
@@ -308,10 +433,10 @@ export default class MainScene extends Phaser.Scene {
 
   showHowToPlay(width: number, height: number) {
     const container = this.add.container(width / 2, height / 2).setDepth(3000).setScrollFactor(0);
-    
+
     const bg = this.add.rectangle(0, 0, 500, 300, 0x000000, 0.7);
     bg.setStrokeStyle(2, 0x00ffff);
-    
+
     const title = this.add.text(0, -110, 'HOW TO PLAY', {
       fontFamily: 'monospace',
       fontSize: '32px',
@@ -324,7 +449,8 @@ export default class MainScene extends Phaser.Scene {
       'LEFT CLICK    : Fireball (Inf)',
       'RIGHT CLICK   : Missile (Ltd)',
       '',
-      'Objective: Reach Liberty Statue',
+      'Collect Hearts to Heal/Buff HP',
+      'Collect Stars to Upgrade Weapon',
       'Watch videos to gain points!'
     ];
 
@@ -350,7 +476,17 @@ export default class MainScene extends Phaser.Scene {
   }
 
   takeDamage(amount: number) {
+    const now = this.time.now;
+    if (now - this.lastDamageTime < this.DAMAGE_COOLDOWN) return;
+    this.lastDamageTime = now;
+
     this.health -= amount;
+
+    // Weapon downgrade on hit
+    if (this.fireballLevel > 1) {
+      this.fireballLevel--;
+    }
+
     if (this.health <= 0) {
       this.health = 0;
       this.triggerGameOver();
@@ -358,7 +494,11 @@ export default class MainScene extends Phaser.Scene {
     GameEvents.emit('health-changed', this.health);
 
     this.dragon.setTint(0xff0000);
-    this.time.delayedCall(100, () => this.dragon.clearTint());
+    this.dragon.setAlpha(0.6);
+    this.time.delayedCall(this.DAMAGE_COOLDOWN, () => {
+      this.dragon.clearTint();
+      this.dragon.setAlpha(1);
+    });
   }
 
   triggerGameOver() {
@@ -390,16 +530,34 @@ export default class MainScene extends Phaser.Scene {
 
   fireFireball() {
     this.fireballSfx.play();
-    const fireball = this.fireballs.get(this.dragon.x + 20, this.dragon.y) as Phaser.Physics.Arcade.Sprite | null;
-    if (fireball) {
-      fireball.enableBody(true, this.dragon.x + 20, this.dragon.y, true, true);
-      fireball.setTexture('fireball');
-      fireball.setDisplaySize(30, 15);
-      fireball.body?.setSize(20, 10);
-      if (!fireball.body) this.physics.add.existing(fireball);
-      fireball.setVelocityX(600);
-      fireball.setCollideWorldBounds(false);
-      fireball.setDepth(10);
+
+    const fire = (x: number, y: number, angle: number = 0) => {
+      const fireball = this.fireballs.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
+      if (fireball) {
+        fireball.enableBody(true, x, y, true, true);
+        fireball.setTexture('fireball');
+        fireball.setDisplaySize(30, 15);
+        fireball.body?.setSize(20, 10);
+        if (!fireball.body) this.physics.add.existing(fireball);
+
+        const vx = Math.cos(angle) * 600;
+        const vy = Math.sin(angle) * 600;
+        fireball.setVelocity(vx, vy);
+        fireball.setAngle(Phaser.Math.RadToDeg(angle));
+        fireball.setCollideWorldBounds(false);
+        fireball.setDepth(10);
+      }
+    };
+
+    if (this.fireballLevel === 1) {
+      fire(this.dragon.x + 20, this.dragon.y);
+    } else if (this.fireballLevel === 2) {
+      fire(this.dragon.x + 20, this.dragon.y - 10);
+      fire(this.dragon.x + 20, this.dragon.y + 10);
+    } else {
+      fire(this.dragon.x + 20, this.dragon.y, -0.1);
+      fire(this.dragon.x + 20, this.dragon.y, 0);
+      fire(this.dragon.x + 20, this.dragon.y, 0.1);
     }
   }
 
@@ -444,7 +602,10 @@ export default class MainScene extends Phaser.Scene {
 
   handlePlayerHit(_dragon: Phaser.Physics.Arcade.Sprite, enemy: Phaser.Physics.Arcade.Sprite) {
     const damage = enemy.getData('damage') || 20;
-    enemy.disableBody(true, true);
+    // Boss stays alive on contact — only fireballs/missiles can kill it
+    if (!enemy.getData('isBoss')) {
+      enemy.disableBody(true, true);
+    }
     this.takeDamage(damage);
   }
 
@@ -454,13 +615,41 @@ export default class MainScene extends Phaser.Scene {
   }
 
   handleBuildingHit(_dragon: Phaser.Physics.Arcade.Sprite, _building: Phaser.Physics.Arcade.Sprite) {
-    this.takeDamage(5); // Bump damage
+    this.takeDamage(3); // Bump damage (cooldown-gated)
   }
 
   handleAmmoPickup(_dragon: Phaser.Physics.Arcade.Sprite, crate: Phaser.Physics.Arcade.Sprite) {
     crate.disableBody(true, true);
     this.missileAmmo += 3;
     GameEvents.emit('ammo-changed', this.missileAmmo);
+  }
+
+  handleHealthPickup(_dragon: Phaser.Physics.Arcade.Sprite, pack: Phaser.Physics.Arcade.Sprite) {
+    pack.disableBody(true, true);
+
+    if (this.health >= this.maxHealth) {
+      if (this.maxHealth < 200) {
+        this.maxHealth += 10;
+        this.health = this.maxHealth;
+      }
+    } else {
+      this.health = Math.min(this.maxHealth, this.health + 20);
+    }
+
+    GameEvents.emit('health-changed', this.health);
+    // Visual feedback for pickup
+    this.dragon.setTint(0x00ff00);
+    this.time.delayedCall(200, () => this.dragon.clearTint());
+  }
+
+  handleWeaponUpgradePickup(_dragon: Phaser.Physics.Arcade.Sprite, upgrade: Phaser.Physics.Arcade.Sprite) {
+    upgrade.disableBody(true, true);
+    if (this.fireballLevel < 3) {
+      this.fireballLevel++;
+    }
+    // Visual feedback
+    this.dragon.setTint(0x00ffff);
+    this.time.delayedCall(200, () => this.dragon.clearTint());
   }
 
   killEnemy(enemy: Phaser.Physics.Arcade.Sprite) {
@@ -470,8 +659,31 @@ export default class MainScene extends Phaser.Scene {
     this.score += points;
     GameEvents.emit('score-changed', this.score);
 
-    if (Math.random() < 0.2) {
+    // Boss defeated — trigger game over (win)
+    if (enemy.getData('isBoss')) {
+      this.isBossLevel = false;
+      this.triggerGameOver();
+      return;
+    }
+
+    const rand = Math.random();
+    if (rand < 0.05) {
+      this.spawnPowerUp(enemy.x, enemy.y, 'weapon_upgrade');
+    } else if (rand < 0.15) {
+      this.spawnPowerUp(enemy.x, enemy.y, 'health_pack');
+    } else if (rand < 0.30) {
       this.spawnAmmoCrate(enemy.x, enemy.y);
+    }
+  }
+
+  spawnPowerUp(x: number, y: number, key: string) {
+    const group = key === 'weapon_upgrade' ? this.weaponUpgrades : this.healthPacks;
+    const item = group.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
+    if (item) {
+      item.enableBody(true, x, y, true, true);
+      item.setTexture(key);
+      item.setDisplaySize(30, 30);
+      item.setVelocityX(-120);
     }
   }
 
@@ -565,7 +777,9 @@ export default class MainScene extends Phaser.Scene {
       boss.setAlpha(1);
       boss.setData('isBoss', true);
 
-      boss.body?.setSize(boss.width, boss.height);
+      const bossBody = boss.body as Phaser.Physics.Arcade.Body;
+      bossBody.setSize(boss.width, boss.height);
+      bossBody.setImmovable(true); // Can't be pushed by projectiles
 
       boss.setData('health', 300);
       boss.setData('maxHealth', 300);
@@ -625,9 +839,10 @@ export default class MainScene extends Phaser.Scene {
       { key: 'skyscraper_blue', width: 60, minH: 200 },
       { key: 'skyscraper_pink', width: 70, minH: 200 }
     ];
-    
+
     const type = buildingTypes[Phaser.Math.Between(0, buildingTypes.length - 1)];
-    const height = Phaser.Math.Between(type.minH, this.sys.canvas.height - 100);
+    const maxH = Math.floor(this.sys.canvas.height * 0.6); // Cap at 60% so the dragon can always fly over
+    const height = Phaser.Math.Between(type.minH, maxH);
     const x = this.sys.canvas.width + 100;
     const y = this.sys.canvas.height - height / 2;
 
@@ -636,7 +851,10 @@ export default class MainScene extends Phaser.Scene {
       building.enableBody(true, x, y, true, true);
       building.setTexture(type.key);
       building.setDisplaySize(type.width, height);
-      (building.body as Phaser.Physics.Arcade.Body).setImmovable(true);
+      // Shrink collision box to 70% width so edges don't clip the dragon unfairly
+      const body = building.body as Phaser.Physics.Arcade.Body;
+      body.setImmovable(true);
+      body.setSize(type.width * 0.7, height * 0.9);
       building.setVelocityX(-100);
     }
   }
@@ -647,27 +865,31 @@ export default class MainScene extends Phaser.Scene {
     // Environment Cycle (60s total cycle)
     this.envCycleTimer += delta;
     const cyclePos = (this.envCycleTimer % 60000) / 60000;
-    
-    let skyColor: number;
+
     if (cyclePos < 0.25) {
       this.currentEnvState = 'DAY';
-      skyColor = 0x161b33; // Deep desaturated blue (Light Dark)
     } else if (cyclePos < 0.5) {
       this.currentEnvState = 'SUNSET';
-      skyColor = 0x2c1414; // Dark murky crimson
     } else if (cyclePos < 0.75) {
       this.currentEnvState = 'NIGHT';
-      skyColor = 0x020205; // Almost black
-      // Random Lightning in Night
-      if (time > this.lastLightningTime + Phaser.Math.Between(3000, 8000)) {
-        this.triggerLightning();
-        this.lastLightningTime = time;
-      }
     } else {
       this.currentEnvState = 'SUNRISE';
-      skyColor = 0x1a1a2e; // Deep purple-blue
     }
-    this.sky.setTint(skyColor);
+
+    // Detect state transition and update weather
+    if (this.currentEnvState !== this.prevEnvState) {
+      this.prevEnvState = this.currentEnvState;
+      this.applyWeatherForState();
+    }
+
+    // Random Lightning during NIGHT and SUNSET
+    if ((this.currentEnvState === 'NIGHT' || this.currentEnvState === 'SUNSET') &&
+        time > this.lastLightningTime + Phaser.Math.Between(3000, 8000)) {
+      this.triggerLightning();
+      this.lastLightningTime = time;
+    }
+
+    this.applyEnvironmentStyle();
 
     // Drifting Clouds
     if (Phaser.Math.Between(0, 500) === 0) {
@@ -685,7 +907,7 @@ export default class MainScene extends Phaser.Scene {
     this.distanceTraveled += 1;
 
     if (this.distanceTraveled > this.checkpointThreshold && !this.isBossLevel) {
-       this.distanceTraveled = 0; 
+       this.distanceTraveled = 0;
        this.spawnCheckpoint();
     }
 
@@ -753,8 +975,19 @@ export default class MainScene extends Phaser.Scene {
             const nextShot = sprite.getData('nextShot');
             const isBoss = sprite.getData('isBoss');
 
-            if (isBoss && sprite.x < this.sys.canvas.width * 0.8) {
-              sprite.setVelocityX(0);
+            if (isBoss) {
+              // Clamp boss to visible area so it can never escape
+              const minX = this.sys.canvas.width * 0.5;
+              const maxX = this.sys.canvas.width * 0.85;
+              if (sprite.x <= minX) {
+                sprite.x = minX;
+                sprite.setVelocityX(0);
+              } else if (sprite.x >= maxX) {
+                sprite.x = maxX;
+                sprite.setVelocityX(-100);
+              } else if (sprite.x < maxX) {
+                sprite.setVelocityX(0);
+              }
             }
 
             if (time > nextShot) {
@@ -763,8 +996,11 @@ export default class MainScene extends Phaser.Scene {
                 sprite.setData('nextShot', time + shotDelay);
             }
         }
-        if (sprite.active && sprite.x < -150) { // Increased margin for large boss
-            sprite.disableBody(true, true);
+        if (sprite.active && sprite.x < -150) {
+            // Never remove the boss offscreen — it must be defeated
+            if (!sprite.getData('isBoss')) {
+              sprite.disableBody(true, true);
+            }
         }
         return true;
     });
@@ -785,6 +1021,8 @@ export default class MainScene extends Phaser.Scene {
     cleanOffscreen(this.missiles, this.sys.canvas.width + 50, true);
     cleanOffscreen(this.enemyBullets, -50, false);
     cleanOffscreen(this.ammoCrates, -50, false);
+    cleanOffscreen(this.weaponUpgrades, -50, false);
+    cleanOffscreen(this.healthPacks, -50, false);
     cleanOffscreen(this.buildings, -100, false);
   }
 }
