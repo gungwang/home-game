@@ -751,14 +751,7 @@ export default class MainScene extends Phaser.Scene {
   handleHealthPickup(_dragon: Phaser.Physics.Arcade.Sprite, pack: Phaser.Physics.Arcade.Sprite) {
     pack.disableBody(true, true);
 
-    if (this.health >= this.maxHealth) {
-      if (this.maxHealth < 200) {
-        this.maxHealth += 10;
-        this.health = this.maxHealth;
-      }
-    } else {
-      this.health = Math.min(this.maxHealth, this.health + 20);
-    }
+    this.health = Math.min(this.maxHealth, this.health + 20);
 
     GameEvents.emit('health-changed', this.health);
     // Visual feedback for pickup
