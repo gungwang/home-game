@@ -93,6 +93,7 @@ export default class MainScene extends Phaser.Scene {
   private landmarksGroup!: Phaser.GameObjects.Group;
   private fireballSfx!: Phaser.Sound.BaseSound;
   private killSfx!: Phaser.Sound.BaseSound;
+  private explosionEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
 
   // Upgrade & Health Properties
   private fireballLevel: number = 1;
@@ -224,6 +225,24 @@ export default class MainScene extends Phaser.Scene {
 
     // Sync weather to environment state on each transition
     this.applyWeatherForState();
+
+    // Explosion Particle Setup
+    const spark = this.add.graphics();
+    spark.fillStyle(0xffffff, 1);
+    spark.fillCircle(4, 4, 4);
+    spark.generateTexture('spark', 8, 8);
+    spark.destroy();
+
+    this.explosionEmitter = this.add.particles(0, 0, 'spark', {
+      lifespan: { min: 300, max: 600 },
+      speed: { min: 100, max: 300 },
+      scale: { start: 1.5, end: 0 },
+      alpha: { start: 1, end: 0 },
+      tint: [0xff0000, 0xff8800, 0xffff00],
+      blendMode: 'ADD',
+      emitting: false
+    });
+    this.explosionEmitter.setDepth(2000);
 
     // Bullet Textures (Remaining placeholders)
     const enemyBulletGraphics = this.add.graphics();
@@ -799,6 +818,10 @@ export default class MainScene extends Phaser.Scene {
 
   killEnemy(enemy: Phaser.Physics.Arcade.Sprite) {
     this.killSfx.play();
+    
+    // Trigger explosion particles
+    this.explosionEmitter.explode(20, enemy.x, enemy.y);
+
     const points = enemy.getData('points') || 10;
     enemy.disableBody(true, true);
     this.score += points;
