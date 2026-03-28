@@ -95,6 +95,8 @@ export default class MainScene extends Phaser.Scene {
 
   // Upgrade & Health Properties
   private fireballLevel: number = 1;
+  private missileLevel: number = 1;
+  private missileUpgrades!: Phaser.Physics.Arcade.Group;
   private maxHealth: number = 100;
   private weaponUpgrades!: Phaser.Physics.Arcade.Group;
   private healthPacks!: Phaser.Physics.Arcade.Group;
@@ -124,7 +126,10 @@ export default class MainScene extends Phaser.Scene {
     this.load.image('dragon-boss', 'dragon-boss.png');
     this.load.image('tv', 'tv.png');
     this.load.svg('fireball', 'fireball.svg', { width: 40, height: 40 });
-    this.load.svg('missile', 'missile.svg', { width: 40, height: 20 });
+    this.load.svg('missile_lv1', 'missile_lv1.svg', { width: 40, height: 20 });
+    this.load.svg('missile_lv2', 'missile_lv2.svg', { width: 60, height: 30 });
+    this.load.svg('missile_lv3', 'missile_lv3.svg', { width: 80, height: 40 });
+    this.load.svg('missile_upgrade', 'missile_upgrade.svg', { width: 30, height: 30 });
     this.load.svg('ammoCrate', 'ammoCrate.svg', { width: 30, height: 30 });
 
     // NYC Buildings & Landmarks
@@ -260,6 +265,7 @@ export default class MainScene extends Phaser.Scene {
     this.tvs = this.add.group();
 
     this.weaponUpgrades = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: -1 });
+    this.missileUpgrades = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: -1 });
     this.healthPacks = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: -1 });
 
     // Clean up any lingering listeners
@@ -303,6 +309,7 @@ export default class MainScene extends Phaser.Scene {
       this.health = 100;
       this.maxHealth = 100;
       this.fireballLevel = 1;
+      this.missileLevel = 1;
       this.missileAmmo = 3;
       this.currentLevel = 1;
       this.videosWatched = 0;
@@ -329,6 +336,7 @@ export default class MainScene extends Phaser.Scene {
     this.physics.add.collider(this.dragon, this.enemies, this.handlePlayerHit as any, undefined, this);
     this.physics.add.overlap(this.dragon, this.ammoCrates, this.handleAmmoPickup as any, undefined, this);
     this.physics.add.overlap(this.dragon, this.weaponUpgrades, this.handleWeaponUpgradePickup as any, undefined, this);
+    this.physics.add.overlap(this.dragon, this.missileUpgrades, this.handleMissileUpgradePickup as any, undefined, this);
     this.physics.add.overlap(this.dragon, this.healthPacks, this.handleHealthPickup as any, undefined, this);
     this.physics.add.collider(this.dragon, this.buildings, this.handleBuildingHit as any, undefined, this);
     this.physics.add.collider(this.dragon, this.enemyBullets, this.handleEnemyBulletHit as any, undefined, this);
@@ -561,6 +569,9 @@ export default class MainScene extends Phaser.Scene {
     if (this.fireballLevel > 1) {
       this.fireballLevel--;
     }
+    if (this.missileLevel > 1) {
+      this.missileLevel--;
+    }
 
     if (this.health <= 0) {
       this.health = 0;
@@ -644,9 +655,13 @@ export default class MainScene extends Phaser.Scene {
       const missile = this.missiles.get(this.dragon.x + 20, this.dragon.y) as Phaser.Physics.Arcade.Sprite | null;
       if (missile) {
         missile.enableBody(true, this.dragon.x + 20, this.dragon.y, true, true);
-        missile.setTexture('missile');
-        missile.setDisplaySize(40, 20);
-        missile.body?.setSize(30, 15);
+        const tex = this.missileLevel === 1 ? 'missile_lv1' : (this.missileLevel === 2 ? 'missile_lv2' : 'missile_lv3');
+        const w = this.missileLevel === 1 ? 40 : (this.missileLevel === 2 ? 60 : 80);
+        const h = this.missileLevel === 1 ? 20 : (this.missileLevel === 2 ? 30 : 40);
+        missile.setTexture(tex);
+        missile.setDisplaySize(w, h);
+        missile.body?.setSize(w * 0.75, h * 0.75);
+        missile.setData('damage', 30 * this.missileLevel);
         if (!missile.body) this.physics.add.existing(missile);
         missile.setVelocityX(400);
       }
@@ -660,7 +675,8 @@ export default class MainScene extends Phaser.Scene {
 
   handleMissileHit(missile: Phaser.Physics.Arcade.Sprite, enemy: Phaser.Physics.Arcade.Sprite) {
     missile.disableBody(true, true);
-    this.damageEnemy(enemy, 30);
+    const damage = missile.getData('damage') || 30;
+    this.damageEnemy(enemy, damage);
   }
 
   damageEnemy(enemy: Phaser.Physics.Arcade.Sprite, damage: number) {
@@ -727,6 +743,16 @@ export default class MainScene extends Phaser.Scene {
     this.time.delayedCall(200, () => this.dragon.clearTint());
   }
 
+  handleMissileUpgradePickup(_dragon: Phaser.Physics.Arcade.Sprite, upgrade: Phaser.Physics.Arcade.Sprite) {
+    upgrade.disableBody(true, true);
+    if (this.missileLevel < 3) {
+      this.missileLevel++;
+    }
+    // Visual feedback
+    this.dragon.setTint(0xff8800);
+    this.time.delayedCall(200, () => this.dragon.clearTint());
+  }
+
   killEnemy(enemy: Phaser.Physics.Arcade.Sprite) {
     this.killSfx.play();
     const points = enemy.getData('points') || 10;
@@ -743,9 +769,11 @@ export default class MainScene extends Phaser.Scene {
     }
 
     const rand = Math.random();
-    if (rand < 0.05) {
+    if (rand < 0.04) {
       this.spawnPowerUp(enemy.x, enemy.y, 'weapon_upgrade');
-    } else if (rand < 0.15) {
+    } else if (rand < 0.08) {
+      this.spawnPowerUp(enemy.x, enemy.y, 'missile_upgrade');
+    } else if (rand < 0.18) {
       this.spawnPowerUp(enemy.x, enemy.y, 'health_pack');
     } else if (rand < 0.30) {
       this.spawnAmmoCrate(enemy.x, enemy.y);
@@ -753,7 +781,9 @@ export default class MainScene extends Phaser.Scene {
   }
 
   spawnPowerUp(x: number, y: number, key: string) {
-    const group = key === 'weapon_upgrade' ? this.weaponUpgrades : this.healthPacks;
+    let group = this.healthPacks;
+    if (key === 'weapon_upgrade') group = this.weaponUpgrades;
+    if (key === 'missile_upgrade') group = this.missileUpgrades;
     const item = group.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
     if (item) {
       item.enableBody(true, x, y, true, true);
@@ -1136,6 +1166,7 @@ export default class MainScene extends Phaser.Scene {
     cleanOffscreen(this.enemyBullets, -50, false);
     cleanOffscreen(this.ammoCrates, -50, false);
     cleanOffscreen(this.weaponUpgrades, -50, false);
+    cleanOffscreen(this.missileUpgrades, -50, false);
     cleanOffscreen(this.healthPacks, -50, false);
     cleanOffscreen(this.buildings, -100, false);
   }
