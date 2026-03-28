@@ -121,6 +121,7 @@ export default class MainScene extends Phaser.Scene {
     this.load.image('chicken', 'chicken.png');
     this.load.image('pig', 'pig.png');
     this.load.image('cow', 'cow.png');
+    this.load.image('dragon-boss', 'dragon-boss.png');
     this.load.image('tv', 'tv.png');
     this.load.svg('fireball', 'fireball.svg', { width: 40, height: 40 });
     this.load.svg('missile', 'missile.svg', { width: 40, height: 20 });
@@ -789,7 +790,14 @@ export default class MainScene extends Phaser.Scene {
     const levelFactor = 1 + (this.videosWatched * 0.2);
     health = Math.floor(health * levelFactor);
 
-    if (this.enemyCounter % 20 === 0) {
+    if ((this.currentLevel === 9 || this.currentLevel === 10) && this.enemyCounter % 15 === 0) {
+      type = 'dragon-boss';
+      health = 300;
+      damage = 30;
+      points = 1000;
+      width = 300;
+      height = 300;
+    } else if (this.enemyCounter % 20 === 0) {
       type = 'cow';
       health = Math.floor(50 * levelFactor);
       damage = 20;
@@ -847,7 +855,7 @@ export default class MainScene extends Phaser.Scene {
 
     if (boss) {
       boss.enableBody(true, x, y, true, true);
-      boss.setTexture('cow');
+      boss.setTexture('dragon-boss');
       boss.setDisplaySize(300, 300);
       boss.setAlpha(1);
       boss.setData('isBoss', true);
@@ -1079,6 +1087,7 @@ export default class MainScene extends Phaser.Scene {
         if (sprite.active && sprite.x < this.sys.canvas.width && sprite.x > 0) {
             const nextShot = sprite.getData('nextShot');
             const isBoss = sprite.getData('isBoss');
+            const isDragonBoss = sprite.texture.key === 'dragon-boss';
 
             if (isBoss) {
               // Clamp boss to visible area so it can never escape
@@ -1096,8 +1105,8 @@ export default class MainScene extends Phaser.Scene {
             }
 
             if (time > nextShot) {
-                this.spawnEnemyBullet(sprite.x, sprite.y, isBoss);
-                const shotDelay = isBoss ? 1000 : Phaser.Math.Between(2000, 5000);
+                this.spawnEnemyBullet(sprite.x, sprite.y, isBoss || isDragonBoss);
+                const shotDelay = (isBoss || isDragonBoss) ? 1000 : Phaser.Math.Between(2000, 5000);
                 sprite.setData('nextShot', time + shotDelay);
             }
         }
