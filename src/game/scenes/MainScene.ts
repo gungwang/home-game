@@ -34,6 +34,27 @@ const ENV_STYLES: Record<EnvState, { sky: number; farTint: number; nearTint: num
   }
 };
 
+interface LevelConfig {
+  name: string;
+  key: string;
+  width: number;
+  height: number;
+  screenBox: { x: number; y: number; width: number; height: number };
+}
+
+const LEVELS: LevelConfig[] = [
+  { name: "Central Park", key: "plaza_hotel", width: 200, height: 400, screenBox: { x: 0, y: -100, width: 160, height: 120 } },
+  { name: "Midtown North", key: "chrysler", width: 100, height: 400, screenBox: { x: 0, y: 0, width: 80, height: 60 } },
+  { name: "Midtown South", key: "empire_state", width: 100, height: 400, screenBox: { x: 0, y: 0, width: 80, height: 60 } },
+  { name: "Chelsea & High Line", key: "vessel", width: 150, height: 200, screenBox: { x: 0, y: -50, width: 100, height: 75 } },
+  { name: "Greenwich Village", key: "washington_arch", width: 200, height: 200, screenBox: { x: 0, y: -80, width: 120, height: 90 } },
+  { name: "Lower East Side", key: "tenement", width: 200, height: 300, screenBox: { x: 0, y: -50, width: 160, height: 120 } },
+  { name: "Tribeca & SoHo", key: "cast_iron", width: 200, height: 300, screenBox: { x: 0, y: -50, width: 160, height: 120 } },
+  { name: "Brooklyn Bridge", key: "brooklyn_bridge", width: 200, height: 400, screenBox: { x: 0, y: -100, width: 120, height: 90 } },
+  { name: "Financial District", key: "one_wtc", width: 150, height: 500, screenBox: { x: 0, y: -150, width: 100, height: 75 } },
+  { name: "The Battery", key: "statue_of_liberty", width: 200, height: 400, screenBox: { x: 0, y: 100, width: 120, height: 90 } } // Screen on base
+];
+
 export default class MainScene extends Phaser.Scene {
   private dragon!: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -41,6 +62,7 @@ export default class MainScene extends Phaser.Scene {
   private missiles!: Phaser.Physics.Arcade.Group;
   private enemyBullets!: Phaser.Physics.Arcade.Group;
 
+  private currentLevel: number = 1;
   private missileAmmo: number = 3;
   private score: number = 0;
   private health: number = 100;
@@ -99,22 +121,23 @@ export default class MainScene extends Phaser.Scene {
     this.load.image('pig', 'pig.png');
     this.load.image('cow', 'cow.png');
     this.load.image('tv', 'tv.png');
-    this.load.svg('fireball', 'fireball.svg');
-    this.load.svg('missile', 'missile.svg');
-    this.load.svg('ammoCrate', 'ammoCrate.svg');
+    this.load.svg('fireball', 'fireball.svg', { width: 40, height: 40 });
+    this.load.svg('missile', 'missile.svg', { width: 40, height: 20 });
+    this.load.svg('ammoCrate', 'ammoCrate.svg', { width: 30, height: 30 });
 
     // NYC Buildings & Landmarks
-    this.load.svg('empire_state', 'empire_state.svg');
-    this.load.svg('chrysler', 'chrysler.svg');
-    this.load.svg('skyscraper_blue', 'skyscraper_blue.svg');
-    this.load.svg('skyscraper_pink', 'skyscraper_pink.svg');
-    this.load.svg('statue_of_liberty', 'statue_of_liberty.svg');
-    this.load.svg('city_far', 'city_far.svg');
-    this.load.svg('city_near', 'city_near.svg');
-    this.load.svg('cloud', 'cloud.svg');
-    this.load.svg('snow_particle', 'snow_particle.svg');
-    this.load.svg('weapon_upgrade', 'weapon_upgrade.svg');
-    this.load.svg('health_pack', 'health_pack.svg');
+    LEVELS.forEach(level => {
+      this.load.svg(level.key, `${level.key}.svg`, { width: level.width, height: level.height });
+    });
+
+    this.load.svg('skyscraper_blue', 'skyscraper_blue.svg', { width: 80, height: 400 });
+    this.load.svg('skyscraper_pink', 'skyscraper_pink.svg', { width: 80, height: 400 });
+    this.load.svg('city_far', 'city_far.svg', { width: 800, height: 400 });
+    this.load.svg('city_near', 'city_near.svg', { width: 800, height: 400 });
+    this.load.svg('cloud', 'cloud.svg', { width: 200, height: 100 });
+    this.load.svg('snow_particle', 'snow_particle.svg', { width: 10, height: 10 });
+    this.load.svg('weapon_upgrade', 'weapon_upgrade.svg', { width: 30, height: 30 });
+    this.load.svg('health_pack', 'health_pack.svg', { width: 30, height: 30 });
 
     // Audio SFX (Using WAV for lower latency and better sync)
     this.load.audio('fireballSfx', 'fireball.wav');
@@ -269,6 +292,7 @@ export default class MainScene extends Phaser.Scene {
       this.maxHealth = 100;
       this.fireballLevel = 1;
       this.missileAmmo = 3;
+      this.currentLevel = 1;
       this.videosWatched = 0;
       this.distanceTraveled = 0;
       this.isPaused = false;
@@ -325,6 +349,15 @@ export default class MainScene extends Phaser.Scene {
 
     // How to Play Overlay
     this.showHowToPlay(width, height);
+
+    // Generate hologram texture for screens
+    const g = this.add.graphics();
+    g.fillStyle(0x000000, 0.5);
+    g.lineStyle(2, 0x00ff00, 1);
+    g.fillRect(0,0, 100, 100);
+    g.strokeRect(0,0,100,100);
+    g.generateTexture('hologramScreen', 100, 100);
+    g.destroy();
   }
 
   changeWeather() {
