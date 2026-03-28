@@ -46,7 +46,7 @@ export default function ResumeScreen({ score, onRestart, highScores }: ResumeScr
               <div>
                 <h4 className="text-pink-400 text-2xl font-bold border-b border-pink-900 mb-5 pb-2 drop-shadow-[0_0_6px_rgba(236,72,153,0.5)]">Professional Experience</h4>
                 <ul className="space-y-3 text-gray-100 text-xl">
-                  <li><span className="text-cyan-500 mr-2">{'>'}</span> <a href="https://www.ul.com" target="_blank" rel="noopener noreferrer" className="text-cyan-300 hover:text-cyan-200 underline decoration-cyan-800">UL Solutions</a> — Drupal + Next.js / ReactJS</li>
+                  <li><span className="text-cyan-500 mr-2">{'>'}</span> <span className="text-cyan-300">UL New AI Project</span> ...</li>
                   <li><span className="text-cyan-500 mr-2">{'>'}</span> <a href="https://www.dfs.ny.gov" target="_blank" rel="noopener noreferrer" className="text-cyan-300 hover:text-cyan-200 underline decoration-cyan-800">NY Dept. of Financial Services</a></li>
                   <li><span className="text-cyan-500 mr-2">{'>'}</span> Enterprise System Architect (2023–2025)</li>
                   <li><span className="text-cyan-500 mr-2">{'>'}</span> 100+ YouTube Music Videos Produced</li>
