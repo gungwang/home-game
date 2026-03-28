@@ -4,46 +4,62 @@ import { GameEvents } from '../GameEvents';
 type EnvState = 'DAY' | 'SUNSET' | 'NIGHT' | 'SUNRISE';
 
 const LEVEL_COLORS = [
-  0x0a1020, // 1: Dark Blue
-  0x200505, // 2: Dark Red
-  0x052005, // 3: Dark Green
-  0x201000, // 4: Dark Orange
-  0x150520, // 5: Dark Purple
-  0x052020, // 6: Dark Cyan
-  0x1a0a00, // 7: Dark Brown
-  0x101510, // 8: Dark Slate
-  0x151515, // 9: Dark Gray
-  0x250000  // 10: Deep Red / Black
+  0x060b18, // 1: Dark Blue
+  0x100408, // 2: Dark Red
+  0x061208, // 3: Dark Green
+  0x120a04, // 4: Dark Orange
+  0x0a0512, // 5: Dark Purple
+  0x051114, // 6: Dark Cyan
+  0x100a03, // 7: Dark Brown
+  0x09100d, // 8: Dark Slate
+  0x0a0a0a, // 9: Dark Gray
+  0x100203  // 10: Deep Nightmare Red
 ];
 
-const ENV_STYLES: Record<EnvState, { sky: number; farTint: number; nearTint: number; cloudAlpha: number; darknessAlpha: number }> = {
+const FAR_BACKDROP_KEYS = [
+  'liberty-empire1',
+  'liberty-empire2',
+  'liberty-empire3',
+  'liberty-empire4',
+  'liberty-empire5'
+] as const;
+
+const ENV_STYLES: Record<EnvState, { sky: number; farTint: number; nearTint: number; backdropTint: number; backdropAlpha: number; cloudAlpha: number; darknessAlpha: number }> = {
   DAY: {
-    sky: 0x161b33,
-    farTint: 0x121523,
-    nearTint: 0x1a1f30,
+    sky: 0x0b1222,
+    farTint: 0x101827,
+    nearTint: 0x182238,
+    backdropTint: 0x314765,
+    backdropAlpha: 0.15,
     cloudAlpha: 0.12,
-    darknessAlpha: 0.7
+    darknessAlpha: 0.58
   },
   SUNSET: {
-    sky: 0x2c1414,
-    farTint: 0x1d1113,
-    nearTint: 0x24161a,
+    sky: 0x11070a,
+    farTint: 0x14090e,
+    nearTint: 0x1c111a,
+    backdropTint: 0x4a313d,
+    backdropAlpha: 0.14,
     cloudAlpha: 0.1,
-    darknessAlpha: 0.56
+    darknessAlpha: 0.62
   },
   NIGHT: {
-    sky: 0x020205,
-    farTint: 0x050508,
-    nearTint: 0x0a0b10,
+    sky: 0x020409,
+    farTint: 0x060b14,
+    nearTint: 0x0d1322,
+    backdropTint: 0x263a56,
+    backdropAlpha: 0.12,
     cloudAlpha: 0.08,
-    darknessAlpha: 0.75
+    darknessAlpha: 0.74
   },
   SUNRISE: {
-    sky: 0x1a1a2e,
-    farTint: 0x151527,
-    nearTint: 0x1d1d34,
+    sky: 0x0e0f1f,
+    farTint: 0x121629,
+    nearTint: 0x1a2138,
+    backdropTint: 0x3b4569,
+    backdropAlpha: 0.13,
     cloudAlpha: 0.1,
-    darknessAlpha: 0.58
+    darknessAlpha: 0.6
   }
 };
 
@@ -90,6 +106,8 @@ export default class MainScene extends Phaser.Scene {
   private sky!: Phaser.GameObjects.TileSprite;
   private farBuildings!: Phaser.GameObjects.TileSprite;
   private nearBuildings!: Phaser.GameObjects.TileSprite;
+  private distantBackdrop!: Phaser.GameObjects.Image;
+  private levelBackdropKeys: string[] = [];
   private screenBuildings!: Phaser.Physics.Arcade.Group;
 
   private distanceTraveled: number = 0;
@@ -141,6 +159,9 @@ export default class MainScene extends Phaser.Scene {
     this.load.image('cow', 'cow.png');
     this.load.image('dragon-boss', 'dragon-boss.png');
     this.load.image('tv', 'tv.png');
+    FAR_BACKDROP_KEYS.forEach((key) => {
+      this.load.image(key, `${key}.png`);
+    });
     this.load.svg('fireball', 'fireball.svg', { width: 40, height: 40 });
     this.load.svg('missile_lv1', 'missile_lv1.svg', { width: 40, height: 20 });
     this.load.svg('missile_lv2', 'missile_lv2.svg', { width: 60, height: 30 });
@@ -178,28 +199,34 @@ export default class MainScene extends Phaser.Scene {
 
     // Background Layer: Deep Space/Sky
     const skyG = this.add.graphics();
-    skyG.fillStyle(0x0a0c1a, 1);
+    skyG.fillStyle(0x182040, 1);
     skyG.fillRect(0, 0, 100, height);
     skyG.generateTexture('sky', 100, height);
     skyG.destroy();
 
     this.sky = this.add.tileSprite(width / 2, height / 2, width, height, 'sky');
+    this.sky.setDepth(-30);
 
-    // Constant Far-Away Statue of Liberty
-    const farLiberty = this.add.image(width * 0.8, height * 0.6, 'statue_of_liberty');
-    farLiberty.setDisplaySize(80, 160); // Small, far away
-    farLiberty.setAlpha(0.15); // Faded into the distance
-    farLiberty.setScrollFactor(0); // Always visible in background
-    farLiberty.setDepth(-2.5); // Between sky and farBuildings
-    
+    this.levelBackdropKeys = Array.from({ length: LEVELS.length }, () =>
+      Phaser.Utils.Array.GetRandom([...FAR_BACKDROP_KEYS])
+    );
+
+    this.distantBackdrop = this.add.image(width / 2, height / 2, this.levelBackdropKeys[0]);
+    this.layoutBackdrop();
+    this.distantBackdrop.setAlpha(0.12);
+    this.distantBackdrop.setTint(0x24364d);
+    this.distantBackdrop.setScrollFactor(0);
+    this.distantBackdrop.setDepth(-22);
 
     // Distant City Layer
     this.farBuildings = this.add.tileSprite(width / 2, height - 200, width, 400, 'city_far');
-    this.farBuildings.setAlpha(0.4);
+    this.farBuildings.setAlpha(0.6);
+  this.farBuildings.setDepth(-12);
 
     // Near City Layer
     this.nearBuildings = this.add.tileSprite(width / 2, height - 100, width, 400, 'city_near');
-    this.nearBuildings.setAlpha(0.6);
+    this.nearBuildings.setAlpha(0.8);
+  this.nearBuildings.setDepth(-8);
 
     // Robust global darkening layer so the world never becomes washed out.
     this.darknessOverlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0)
@@ -330,14 +357,15 @@ export default class MainScene extends Phaser.Scene {
       if (this.landmarksGroup) this.landmarksGroup.clear(true, true);
 
       this.videosWatched++;
-      
+
       if (this.currentLevel === 10) {
          // Video for Level 10 finished -> Game Over (Victory!)
          this.triggerGameOver();
          return;
       }
-      
+
       this.currentLevel++;
+      this.updateBackdropForLevel();
       this.showLevelTitle();
 
       if (this.currentLevel === 10) {
@@ -424,7 +452,7 @@ export default class MainScene extends Phaser.Scene {
 
   showDifficultySelection(width: number, height: number) {
     this.isPaused = true;
-    
+
     const container = this.add.container(width / 2, height / 2).setDepth(5000).setScrollFactor(0);
 
     const bg = this.add.rectangle(0, 0, 600, 300, 0x000000, 0.9);
@@ -451,7 +479,7 @@ export default class MainScene extends Phaser.Scene {
       this.difficulty = diff;
       container.destroy();
       this.isPaused = false;
-      
+
       this.showHowToPlay(width, height);
       this.isGracePeriod = true;
       this.time.delayedCall(6000, () => {
@@ -551,7 +579,25 @@ export default class MainScene extends Phaser.Scene {
     this.sky.setTint(levelSkyColor);
     this.farBuildings.setTint(style.farTint);
     this.nearBuildings.setTint(style.nearTint);
+    this.distantBackdrop.setTint(style.backdropTint);
+    this.distantBackdrop.setAlpha(style.backdropAlpha);
     this.darknessOverlay.setAlpha(style.darknessAlpha);
+  }
+
+  layoutBackdrop() {
+    const width = this.sys.canvas.width;
+    const height = this.sys.canvas.height;
+    this.distantBackdrop.setPosition(width / 2, height / 2);
+    this.distantBackdrop.setDisplaySize(width, height);
+  }
+
+  updateBackdropForLevel() {
+    const index = Math.min(this.currentLevel - 1, this.levelBackdropKeys.length - 1);
+    const key = this.levelBackdropKeys[index];
+    if (key && this.distantBackdrop.texture.key !== key) {
+      this.distantBackdrop.setTexture(key);
+      this.layoutBackdrop();
+    }
   }
 
   spawnCloud() {
@@ -622,7 +668,7 @@ export default class MainScene extends Phaser.Scene {
 
   showLevelTitle() {
     if (this.currentLevel > 10) return;
-    
+
     const config = LEVELS[this.currentLevel - 1];
     const width = this.sys.canvas.width;
     const height = this.sys.canvas.height;
@@ -883,7 +929,7 @@ export default class MainScene extends Phaser.Scene {
 
   killEnemy(enemy: Phaser.Physics.Arcade.Sprite) {
     this.killSfx.play();
-    
+
     // Trigger explosion particles
     this.explosionEmitter.explode(20, enemy.x, enemy.y);
 
@@ -906,7 +952,7 @@ export default class MainScene extends Phaser.Scene {
       if (activeBosses === 0) {
         this.isBossLevel = false;
         // Reset distance traveled so checkpoint spawns soon after boss dies
-        this.distanceTraveled = this.checkpointThreshold - 1000; 
+        this.distanceTraveled = this.checkpointThreshold - 1000;
       }
       return;
     }
@@ -1038,7 +1084,7 @@ export default class MainScene extends Phaser.Scene {
 
     for (let i = 0; i < numBosses; i++) {
       // Create a grid layout for large number of bosses
-      
+
       const row = i % 3;
       const col = Math.floor(i / 3);
 
@@ -1120,7 +1166,7 @@ export default class MainScene extends Phaser.Scene {
     const landmark = this.add.sprite(x, y, config.key);
     landmark.setDisplaySize(config.width, config.height);
     landmark.setDepth(-2);
-    
+
     if (!this.landmarksGroup) {
       this.landmarksGroup = this.add.group();
     }
@@ -1129,14 +1175,14 @@ export default class MainScene extends Phaser.Scene {
     // 2. Physics Checkpoint / Screen Box
     const screenX = x + config.screenBox.x;
     const screenY = y + config.screenBox.y;
-    
+
     const screenBuilding = this.screenBuildings.get(screenX, screenY) as Phaser.Physics.Arcade.Sprite | null;
     if (screenBuilding) {
       screenBuilding.enableBody(true, screenX, screenY, true, true);
-      
+
       screenBuilding.setTexture('hologramScreen');
       screenBuilding.setDisplaySize(config.screenBox.width, config.screenBox.height);
-      
+
       if (!screenBuilding.body) this.physics.add.existing(screenBuilding);
       (screenBuilding.body as Phaser.Physics.Arcade.Body).setImmovable(true);
       screenBuilding.setVelocityX(-100);
@@ -1240,7 +1286,7 @@ export default class MainScene extends Phaser.Scene {
       const tv = building.getData('linkedTv') as Phaser.GameObjects.Image;
       const landmark = building.getData('linkedLandmark') as Phaser.GameObjects.Sprite;
       const offsetX = building.getData('landmarkOffsetX') as number;
-      
+
       if (building) {
         if (tv) tv.x = building.x;
         if (landmark) landmark.x = building.x - offsetX;
@@ -1268,6 +1314,7 @@ export default class MainScene extends Phaser.Scene {
     this.sky.tilePositionX += 0.5;
     this.farBuildings.tilePositionX += 1;
     this.nearBuildings.tilePositionX += 2;
+    this.distantBackdrop.x = this.sys.canvas.width / 2 + Math.sin(time * 0.00008) * 10;
 
     // Movement
     const speed = 400;
