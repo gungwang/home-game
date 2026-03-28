@@ -270,7 +270,6 @@ export default class MainScene extends Phaser.Scene {
 
       this.isPaused = false;
       this.scene.resume();
-      if (this.currentLevel <= 10) this.showLevelTitle();
       GameEvents.emit('bgm-play'); // Resume BGM
 
       const timeBonus = watchedSeconds * 2;
@@ -281,9 +280,18 @@ export default class MainScene extends Phaser.Scene {
       if (this.landmarksGroup) this.landmarksGroup.clear(true, true);
 
       this.videosWatched++;
-      if (this.videosWatched >= 10) {
-        this.triggerGameOver();
-      } else if (this.videosWatched === 9) {
+      
+      if (this.currentLevel === 10) {
+         // Video for Level 10 finished -> Game Over (Victory!)
+         this.triggerGameOver();
+         return;
+      }
+      
+      this.currentLevel++;
+      this.showLevelTitle();
+
+      if (this.currentLevel === 10) {
+        // Just started Level 10 -> Spawn Boss immediately instead of normal enemies
         this.isBossLevel = true;
         this.spawnBoss();
       }
@@ -725,10 +733,11 @@ export default class MainScene extends Phaser.Scene {
     this.score += points;
     GameEvents.emit('score-changed', this.score);
 
-    // Boss defeated — trigger game over (win)
+    // Boss defeated — reset distance to trigger final checkpoint
     if (enemy.getData('isBoss')) {
       this.isBossLevel = false;
-      this.triggerGameOver();
+      // Reset distance traveled so checkpoint spawns soon after boss dies
+      this.distanceTraveled = this.checkpointThreshold - 1000; 
       return;
     }
 
@@ -1053,12 +1062,12 @@ export default class MainScene extends Phaser.Scene {
       this.dragon.setVelocityY(speed);
     }
 
-    if (time > this.lastEnemySpawn && !this.isBossLevel) {
+    if (time > this.lastEnemySpawn && !this.isBossLevel && this.currentLevel < 10) {
         this.spawnEnemy();
         this.lastEnemySpawn = time + Phaser.Math.Between(1000, 3000) / (1 + this.videosWatched * 0.1);
     }
 
-    if (time > this.lastBuildingSpawn && !this.isBossLevel) {
+    if (time > this.lastBuildingSpawn && !this.isBossLevel && this.currentLevel < 10) {
         this.spawnBuilding();
         this.lastBuildingSpawn = time + Phaser.Math.Between(3000, 6000);
     }
