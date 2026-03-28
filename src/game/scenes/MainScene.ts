@@ -4,16 +4,16 @@ import { GameEvents } from '../GameEvents';
 type EnvState = 'DAY' | 'SUNSET' | 'NIGHT' | 'SUNRISE';
 
 const LEVEL_COLORS = [
-  0x060b18, // 1: Dark Blue
-  0x100408, // 2: Dark Red
-  0x061208, // 3: Dark Green
-  0x120a04, // 4: Dark Orange
-  0x0a0512, // 5: Dark Purple
-  0x051114, // 6: Dark Cyan
-  0x100a03, // 7: Dark Brown
-  0x09100d, // 8: Dark Slate
-  0x0a0a0a, // 9: Dark Gray
-  0x100203  // 10: Deep Nightmare Red
+  0x173256, // 1: Deep Blue
+  0x3a1927, // 2: Deep Red
+  0x173a2c, // 3: Deep Green
+  0x43301a, // 4: Deep Orange
+  0x26183e, // 5: Deep Purple
+  0x143947, // 6: Deep Cyan
+  0x3a2613, // 7: Deep Brown
+  0x1a2933, // 8: Deep Slate
+  0x242a35, // 9: Deep Gray
+  0x351116  // 10: Nightmare Red
 ];
 
 const FAR_BACKDROP_KEYS = [
@@ -26,40 +26,40 @@ const FAR_BACKDROP_KEYS = [
 
 const ENV_STYLES: Record<EnvState, { sky: number; farTint: number; nearTint: number; backdropTint: number; backdropAlpha: number; cloudAlpha: number; darknessAlpha: number }> = {
   DAY: {
-    sky: 0x0b1222,
-    farTint: 0x101827,
-    nearTint: 0x182238,
-    backdropTint: 0x314765,
-    backdropAlpha: 0.15,
-    cloudAlpha: 0.12,
-    darknessAlpha: 0.58
+    sky: 0x2a4d78,
+    farTint: 0x55739a,
+    nearTint: 0x7190b2,
+    backdropTint: 0xcbdff4,
+    backdropAlpha: 0.42,
+    cloudAlpha: 0.18,
+    darknessAlpha: 0.14
   },
   SUNSET: {
-    sky: 0x11070a,
-    farTint: 0x14090e,
-    nearTint: 0x1c111a,
-    backdropTint: 0x4a313d,
-    backdropAlpha: 0.14,
-    cloudAlpha: 0.1,
-    darknessAlpha: 0.62
+    sky: 0x5b2430,
+    farTint: 0x7a4561,
+    nearTint: 0xa26479,
+    backdropTint: 0xf1b79d,
+    backdropAlpha: 0.38,
+    cloudAlpha: 0.15,
+    darknessAlpha: 0.22
   },
   NIGHT: {
-    sky: 0x020409,
-    farTint: 0x060b14,
-    nearTint: 0x0d1322,
-    backdropTint: 0x263a56,
-    backdropAlpha: 0.12,
-    cloudAlpha: 0.08,
-    darknessAlpha: 0.74
+    sky: 0x11254a,
+    farTint: 0x2c4168,
+    nearTint: 0x46608f,
+    backdropTint: 0xb8d2f2,
+    backdropAlpha: 0.34,
+    cloudAlpha: 0.12,
+    darknessAlpha: 0.32
   },
   SUNRISE: {
-    sky: 0x0e0f1f,
-    farTint: 0x121629,
-    nearTint: 0x1a2138,
-    backdropTint: 0x3b4569,
-    backdropAlpha: 0.13,
-    cloudAlpha: 0.1,
-    darknessAlpha: 0.6
+    sky: 0x3b4d7a,
+    farTint: 0x5f73a0,
+    nearTint: 0x8699c1,
+    backdropTint: 0xf1d7be,
+    backdropAlpha: 0.4,
+    cloudAlpha: 0.16,
+    darknessAlpha: 0.18
   }
 };
 
@@ -213,19 +213,19 @@ export default class MainScene extends Phaser.Scene {
 
     this.distantBackdrop = this.add.image(width / 2, height / 2, this.levelBackdropKeys[0]);
     this.layoutBackdrop();
-    this.distantBackdrop.setAlpha(0.12);
-    this.distantBackdrop.setTint(0x24364d);
+    this.distantBackdrop.setAlpha(0.34);
+    this.distantBackdrop.setTint(0xb8d2f2);
     this.distantBackdrop.setScrollFactor(0);
     this.distantBackdrop.setDepth(-22);
 
     // Distant City Layer
     this.farBuildings = this.add.tileSprite(width / 2, height - 200, width, 400, 'city_far');
-    this.farBuildings.setAlpha(0.6);
+    this.farBuildings.setAlpha(0.72);
   this.farBuildings.setDepth(-12);
 
     // Near City Layer
     this.nearBuildings = this.add.tileSprite(width / 2, height - 100, width, 400, 'city_near');
-    this.nearBuildings.setAlpha(0.8);
+    this.nearBuildings.setAlpha(0.9);
   this.nearBuildings.setDepth(-8);
 
     // Robust global darkening layer so the world never becomes washed out.
@@ -598,6 +598,118 @@ export default class MainScene extends Phaser.Scene {
       this.distantBackdrop.setTexture(key);
       this.layoutBackdrop();
     }
+  }
+
+  createBuildingDecorations(
+    building: Phaser.Physics.Arcade.Sprite,
+    width: number,
+    height: number,
+    accentColor: number
+  ) {
+    const groundY = this.sys.canvas.height;
+    const topEdge = building.y - height / 2;
+    const baseHeight = Math.max(16, Math.round(height * 0.06));
+    const trimWidth = Math.max(4, Math.round(width * 0.08));
+    const crownWidth = Math.max(18, Math.round(width * 0.42));
+    const trimHeight = height * 0.72;
+
+    const base = this.add.rectangle(building.x, groundY - baseHeight / 2, width + 18, baseHeight, 0x131c2d, 0.95)
+      .setDepth(1);
+    const crown = this.add.rectangle(building.x, topEdge + 10, crownWidth, 6, accentColor, 0.75)
+      .setDepth(1);
+    const leftTrim = this.add.rectangle(building.x - width * 0.24, topEdge + (trimHeight / 2) + 14, trimWidth, trimHeight, accentColor, 0.28)
+      .setDepth(1);
+    const rightTrim = this.add.rectangle(building.x + width * 0.24, topEdge + (trimHeight / 2) + 14, trimWidth, trimHeight, accentColor, 0.28)
+      .setDepth(1);
+
+    const windowRows = Math.max(3, Math.min(7, Math.floor(height / 70)));
+    const windows: Phaser.GameObjects.Rectangle[] = [];
+    for (let i = 0; i < windowRows; i++) {
+      const windowLight = this.add.rectangle(
+        building.x,
+        topEdge + 38 + (i * Math.max(26, height * 0.11)),
+        Math.max(10, width * 0.22),
+        5,
+        0xfff3a1,
+        0.18
+      ).setDepth(1);
+      windows.push(windowLight);
+    }
+
+    building.setData('decorBase', base);
+    building.setData('decorCrown', crown);
+    building.setData('decorLeftTrim', leftTrim);
+    building.setData('decorRightTrim', rightTrim);
+    building.setData('decorWindows', windows);
+    building.setData('decorAccent', accentColor);
+
+    this.syncBuildingDecorations(building);
+  }
+
+  syncBuildingDecorations(building: Phaser.Physics.Arcade.Sprite) {
+    const displayWidth = building.displayWidth;
+    const displayHeight = building.displayHeight;
+    const groundY = this.sys.canvas.height;
+    const topEdge = building.y - displayHeight / 2;
+    const trimHeight = displayHeight * 0.72;
+
+    const base = building.getData('decorBase') as Phaser.GameObjects.Rectangle | undefined;
+    const crown = building.getData('decorCrown') as Phaser.GameObjects.Rectangle | undefined;
+    const leftTrim = building.getData('decorLeftTrim') as Phaser.GameObjects.Rectangle | undefined;
+    const rightTrim = building.getData('decorRightTrim') as Phaser.GameObjects.Rectangle | undefined;
+    const windows = (building.getData('decorWindows') as Phaser.GameObjects.Rectangle[] | undefined) ?? [];
+
+    if (base) {
+      base.x = building.x;
+      base.y = groundY - base.height / 2;
+      base.width = displayWidth + 18;
+    }
+
+    if (crown) {
+      crown.x = building.x;
+      crown.y = topEdge + 10;
+      crown.width = Math.max(18, Math.round(displayWidth * 0.42));
+    }
+
+    if (leftTrim) {
+      leftTrim.x = building.x - displayWidth * 0.24;
+      leftTrim.y = topEdge + (trimHeight / 2) + 14;
+      leftTrim.width = Math.max(4, Math.round(displayWidth * 0.08));
+      leftTrim.height = trimHeight;
+    }
+
+    if (rightTrim) {
+      rightTrim.x = building.x + displayWidth * 0.24;
+      rightTrim.y = topEdge + (trimHeight / 2) + 14;
+      rightTrim.width = Math.max(4, Math.round(displayWidth * 0.08));
+      rightTrim.height = trimHeight;
+    }
+
+    windows.forEach((windowLight, index) => {
+      windowLight.x = building.x;
+      windowLight.y = topEdge + 38 + (index * Math.max(26, displayHeight * 0.11));
+      windowLight.width = Math.max(10, displayWidth * 0.22);
+    });
+  }
+
+  destroyBuildingDecorations(building: Phaser.Physics.Arcade.Sprite) {
+    const base = building.getData('decorBase') as Phaser.GameObjects.Rectangle | undefined;
+    const crown = building.getData('decorCrown') as Phaser.GameObjects.Rectangle | undefined;
+    const leftTrim = building.getData('decorLeftTrim') as Phaser.GameObjects.Rectangle | undefined;
+    const rightTrim = building.getData('decorRightTrim') as Phaser.GameObjects.Rectangle | undefined;
+    const windows = (building.getData('decorWindows') as Phaser.GameObjects.Rectangle[] | undefined) ?? [];
+
+    base?.destroy();
+    crown?.destroy();
+    leftTrim?.destroy();
+    rightTrim?.destroy();
+    windows.forEach((windowLight) => windowLight.destroy());
+
+    building.setData('decorBase', null);
+    building.setData('decorCrown', null);
+    building.setData('decorLeftTrim', null);
+    building.setData('decorRightTrim', null);
+    building.setData('decorWindows', null);
   }
 
   spawnCloud() {
@@ -1203,28 +1315,33 @@ export default class MainScene extends Phaser.Scene {
 
   spawnBuilding() {
     const buildingTypes = [
-      { key: 'empire_state', width: 80, minH: 300 },
-      { key: 'chrysler', width: 80, minH: 300 },
-      { key: 'skyscraper_blue', width: 60, minH: 200 },
-      { key: 'skyscraper_pink', width: 70, minH: 200 }
+      { key: 'empire_state', width: 80, minH: 300, accentColor: 0xff5ccf },
+      { key: 'chrysler', width: 80, minH: 300, accentColor: 0x49d7ff },
+      { key: 'skyscraper_blue', width: 60, minH: 200, accentColor: 0x4dc3ff },
+      { key: 'skyscraper_pink', width: 70, minH: 200, accentColor: 0xff5ce1 }
     ];
 
     const type = buildingTypes[Phaser.Math.Between(0, buildingTypes.length - 1)];
     const maxH = Math.floor(this.sys.canvas.height * 0.6); // Cap at 60% so the dragon can always fly over
     const height = Phaser.Math.Between(type.minH, maxH);
     const x = this.sys.canvas.width + 100;
-    const y = this.sys.canvas.height - height / 2;
+    const y = this.sys.canvas.height - height / 2 + 6;
 
     const building = this.buildings.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
     if (building) {
       building.enableBody(true, x, y, true, true);
       building.setTexture(type.key);
       building.setDisplaySize(type.width, height);
+      building.setDepth(0.5);
       // Shrink collision box to 70% width so edges don't clip the dragon unfairly
       const body = building.body as Phaser.Physics.Arcade.Body;
       body.setImmovable(true);
-      body.setSize(type.width * 0.7, height * 0.9);
+      body.setSize(type.width * 0.7, height * 0.94);
+      body.setOffset(type.width * 0.15, height * 0.06);
       building.setVelocityX(-100);
+
+      this.destroyBuildingDecorations(building);
+      this.createBuildingDecorations(building, type.width, height, type.accentColor);
     }
   }
 
@@ -1316,6 +1433,14 @@ export default class MainScene extends Phaser.Scene {
     this.nearBuildings.tilePositionX += 2;
     this.distantBackdrop.x = this.sys.canvas.width / 2 + Math.sin(time * 0.00008) * 10;
 
+    this.buildings.children.each((b) => {
+      const building = b as Phaser.Physics.Arcade.Sprite;
+      if (building.active) {
+        this.syncBuildingDecorations(building);
+      }
+      return true;
+    });
+
     // Movement
     const speed = 400;
     this.dragon.setVelocity(0);
@@ -1385,6 +1510,9 @@ export default class MainScene extends Phaser.Scene {
           const sprite = item as Phaser.Physics.Arcade.Sprite;
           if (sprite.active) {
               if (checkRight ? sprite.x > boundary : sprite.x < boundary) {
+            if (group === this.buildings) {
+              this.destroyBuildingDecorations(sprite);
+            }
                   sprite.disableBody(true, true);
               }
           }

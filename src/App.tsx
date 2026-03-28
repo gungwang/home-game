@@ -42,18 +42,18 @@ export default function App() {
         const updatedScores = [...prevScores, newScore]
           .sort((a, b) => b.score - a.score)
           .slice(0, 10)
-        
+
         localStorage.setItem('dragon-game-high-scores', JSON.stringify(updatedScores))
         return updatedScores
       })
     }
 
     const handleScoreChanged = (newScore: number) => setScore(newScore)
-    
+
     GameEvents.on('show-video', handleShowVideo)
     GameEvents.on('game-over', handleGameOver)
     GameEvents.on('score-changed', handleScoreChanged)
-    
+
     return () => {
       GameEvents.off('show-video', handleShowVideo)
       GameEvents.off('game-over', handleGameOver)
@@ -79,7 +79,7 @@ export default function App() {
   }
 
   return (
-    <div className="w-full h-screen relative bg-black overflow-hidden">
+    <div className="w-full h-screen relative bg-[#09111d] overflow-hidden">
       {isGameOver ? (
         <ResumeScreen score={score} onRestart={handleRestart} highScores={highScores} />
       ) : (

@@ -15,5 +15,5 @@ export default function GameCanvas() {
     };
   }, []);
 
-  return <div id="phaser-container" className="flex justify-center items-center w-full h-screen bg-black" />;
+  return <div id="phaser-container" className="flex justify-center items-center w-full h-screen bg-[#09111d]" />;
 }
