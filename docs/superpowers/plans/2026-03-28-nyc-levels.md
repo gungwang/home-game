@@ -72,10 +72,26 @@
   ```
 - [ ] **Step 2: Add `currentLevel` property and load assets**
   Add `private currentLevel: number = 1;` to the `MainScene` class.
-  In `preload()`, add `this.load.svg` calls for all the new placeholder assets with their respective width/height from the config.
+  In `preload()`, add a loop to load all SVG assets with their respective width/height from the config. (Note: remove any duplicate manual loads for empire_state, chrysler, and statue_of_liberty if they exist).
+  ```typescript
+    LEVELS.forEach(level => {
+      this.load.svg(level.key, \`\${level.key}.svg\`, { width: level.width, height: level.height });
+    });
+  ```
 - [ ] **Step 3: Reset `currentLevel` on restart**
   In the `onRestartGame` listener within `create()`, reset `this.currentLevel = 1;`.
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Generate Hologram Texture**
+  At the end of `create()`, generate the hologram texture used for the video screens to avoid doing it repeatedly in spawnCheckpoint:
+  ```typescript
+     const g = this.add.graphics();
+     g.fillStyle(0x000000, 0.5);
+     g.lineStyle(2, 0x00ff00, 1);
+     g.fillRect(0,0, 100, 100);
+     g.strokeRect(0,0,100,100);
+     g.generateTexture('hologramScreen', 100, 100);
+     g.destroy();
+  ```
+- [ ] **Step 5: Commit**
   ```bash
   git add src/game/scenes/MainScene.ts
   git commit -m "feat(game): add level config and load landmark assets"
@@ -133,8 +149,6 @@
 
 - [ ] **Step 1: Refactor `spawnCheckpoint`**
   Update the method to use the `LEVELS` config based on `this.currentLevel`. The landmark sprite handles the collision, and a child `screenBuilding` and `tv` icon are positioned relative to it.
-  Instead of a single Sprite, we should use a `Phaser.GameObjects.Container` for the visual grouping, but keep the `screenBuilding` in the physics group for collision.
-  *Wait, current collision is tied to `screenBuildings`. Let's keep `screenBuildings` group for the invisible collision/screen box, and add a visual landmark Sprite behind it.*
   
   ```typescript
   spawnCheckpoint() {
@@ -148,9 +162,6 @@
     const landmark = this.add.sprite(x, y, config.key);
     landmark.setDisplaySize(config.width, config.height);
     landmark.setDepth(-2);
-    // Keep reference to move it in update
-    landmark.setData('isLandmark', true); 
-    this.add.existing(landmark); // Add to display list, we will move it manually in update() or add it to a group. Let's use a group.
     
     if (!this.landmarksGroup) {
       this.landmarksGroup = this.add.group();
@@ -164,16 +175,6 @@
     const screenBuilding = this.screenBuildings.get(screenX, screenY) as Phaser.Physics.Arcade.Sprite | null;
     if (screenBuilding) {
       screenBuilding.enableBody(true, screenX, screenY, true, true);
-      // Create a smaller, transparent texture for the screen box
-      if (!this.textures.exists('hologramScreen')) {
-         const g = this.add.graphics();
-         g.fillStyle(0x000000, 0.5);
-         g.lineStyle(2, 0x00ff00, 1);
-         g.fillRect(0,0, 100, 100);
-         g.strokeRect(0,0,100,100);
-         g.generateTexture('hologramScreen', 100, 100);
-         g.destroy();
-      }
       
       screenBuilding.setTexture('hologramScreen');
       screenBuilding.setDisplaySize(config.screenBox.width, config.screenBox.height);
@@ -183,8 +184,9 @@
       screenBuilding.setVelocityX(-100);
       screenBuilding.setDepth(-1);
 
-      // Link landmark to screenBuilding to keep them synced in update
+      // Link landmark and save offset to avoid recalculating with wrong level later
       screenBuilding.setData('linkedLandmark', landmark);
+      screenBuilding.setData('landmarkOffsetX', config.screenBox.x);
 
       // 3. TV Icon
       const tv = this.add.image(screenX, screenY - (config.screenBox.height/2) - 30, 'tv');
@@ -196,22 +198,18 @@
   ```
 - [ ] **Step 2: Update related logic**
   Add `private landmarksGroup!: Phaser.GameObjects.Group;` to the class properties.
-  In `create()`, initialize it: `this.landmarksGroup = this.add.group();`.
-  In `onVideoComplete`, clear the landmarks: `this.landmarksGroup.clear(true, true);`.
-  In `update()`, sync the landmark x position with the `screenBuilding` x position, just like the TV:
+  In `onVideoComplete`, clear the landmarks: `if (this.landmarksGroup) this.landmarksGroup.clear(true, true);`.
+  In `update()`, sync the landmark x position with the `screenBuilding` x position using the stored offset:
   ```typescript
     this.screenBuildings.children.each((sb, index) => {
       const building = sb as Phaser.Physics.Arcade.Sprite;
       const tv = this.tvs.getChildren()[index] as Phaser.GameObjects.Image;
       const landmark = building.getData('linkedLandmark') as Phaser.GameObjects.Sprite;
+      const offsetX = building.getData('landmarkOffsetX') as number;
       
       if (building) {
         if (tv) tv.x = building.x;
-        if (landmark) {
-           const config = LEVELS[this.currentLevel - 1];
-           // Reverse the offset to find the landmark's true X based on the screen's X
-           if (config) landmark.x = building.x - config.screenBox.x;
-        }
+        if (landmark) landmark.x = building.x - offsetX;
       }
       return true;
     });
@@ -229,21 +227,11 @@
 
 - [ ] **Step 1: Update `onVideoComplete` logic**
   Increment `this.currentLevel` *after* the video completes.
-  Handle the Level 10 ending.
+  Handle the Level 10 ending. Remove the old `videosWatched` boss/gameover logic completely.
   ```typescript
     const onVideoComplete = (watchedSeconds: number = 0) => {
-      if (!this.sys || !this.scene || !this.scene.manager) return;
-
-      this.isPaused = false;
-      this.scene.resume();
-      GameEvents.emit('bgm-play');
-
-      const timeBonus = watchedSeconds * 2;
-      this.score += (50 + timeBonus);
-      GameEvents.emit('score-changed', this.score);
+      // ... (keep resume logic, score calculation, clear screen buildings and tvs)
       
-      this.screenBuildings.clear(true, true);
-      this.tvs.clear(true, true);
       if (this.landmarksGroup) this.landmarksGroup.clear(true, true);
 
       this.videosWatched++;
