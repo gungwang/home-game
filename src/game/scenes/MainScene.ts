@@ -751,9 +751,14 @@ export default class MainScene extends Phaser.Scene {
   handleHealthPickup(_dragon: Phaser.Physics.Arcade.Sprite, pack: Phaser.Physics.Arcade.Sprite) {
     pack.disableBody(true, true);
 
-    this.health = Math.min(this.maxHealth, this.health + 20);
+    if (this.health >= this.maxHealth) {
+      this.score += 50;
+      GameEvents.emit('score-changed', this.score);
+    } else {
+      this.health = Math.min(this.maxHealth, this.health + 20);
+      GameEvents.emit('health-changed', this.health);
+    }
 
-    GameEvents.emit('health-changed', this.health);
     // Visual feedback for pickup
     this.dragon.setTint(0x00ff00);
     this.time.delayedCall(200, () => this.dragon.clearTint());
@@ -763,6 +768,9 @@ export default class MainScene extends Phaser.Scene {
     upgrade.disableBody(true, true);
     if (this.fireballLevel < 3) {
       this.fireballLevel++;
+    } else {
+      this.score += 50;
+      GameEvents.emit('score-changed', this.score);
     }
     // Visual feedback
     this.dragon.setTint(0x00ffff);
@@ -773,6 +781,9 @@ export default class MainScene extends Phaser.Scene {
     upgrade.disableBody(true, true);
     if (this.missileLevel < 3) {
       this.missileLevel++;
+    } else {
+      this.score += 50;
+      GameEvents.emit('score-changed', this.score);
     }
     // Visual feedback
     this.dragon.setTint(0xff8800);
@@ -788,9 +799,20 @@ export default class MainScene extends Phaser.Scene {
 
     // Boss defeated — reset distance to trigger final checkpoint
     if (enemy.getData('isBoss')) {
-      this.isBossLevel = false;
-      // Reset distance traveled so checkpoint spawns soon after boss dies
-      this.distanceTraveled = this.checkpointThreshold - 1000; 
+      let activeBosses = 0;
+      this.enemies.children.each((e) => {
+        const sprite = e as Phaser.Physics.Arcade.Sprite;
+        if (sprite.active && sprite.getData('isBoss')) {
+          activeBosses++;
+        }
+        return true;
+      });
+
+      if (activeBosses === 0) {
+        this.isBossLevel = false;
+        // Reset distance traveled so checkpoint spawns soon after boss dies
+        this.distanceTraveled = this.checkpointThreshold - 1000; 
+      }
       return;
     }
 
@@ -905,28 +927,32 @@ export default class MainScene extends Phaser.Scene {
       ease: 'Linear'
     });
 
-    const y = this.sys.canvas.height / 2;
-    const x = this.sys.canvas.width + 200;
-    const boss = this.enemies.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
+    const numBosses = Phaser.Math.Between(2, 3);
+    for (let i = 0; i < numBosses; i++) {
+      const y = (this.sys.canvas.height / (numBosses + 1)) * (i + 1);
+      const x = this.sys.canvas.width + 200 + (i * 100);
+      const boss = this.enemies.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
 
-    if (boss) {
-      boss.enableBody(true, x, y, true, true);
-      boss.setTexture('dragon-boss');
-      boss.setDisplaySize(300, 300);
-      boss.setAlpha(1);
-      boss.setData('isBoss', true);
+      if (boss) {
+        boss.enableBody(true, x, y, true, true);
+        boss.setTexture('dragon-boss');
+        // Scale down slightly to fit multiple bosses on screen
+        boss.setDisplaySize(200, 200);
+        boss.setAlpha(1);
+        boss.setData('isBoss', true);
 
-      const bossBody = boss.body as Phaser.Physics.Arcade.Body;
-      bossBody.setSize(boss.width, boss.height);
-      bossBody.setImmovable(true); // Can't be pushed by projectiles
+        const bossBody = boss.body as Phaser.Physics.Arcade.Body;
+        bossBody.setSize(boss.width, boss.height);
+        bossBody.setImmovable(true); // Can't be pushed by projectiles
 
-      boss.setData('health', 300);
-      boss.setData('maxHealth', 300);
-      boss.setData('damage', 30);
-      boss.setData('points', 1000);
+        boss.setData('health', 300);
+        boss.setData('maxHealth', 300);
+        boss.setData('damage', 30);
+        boss.setData('points', 1000);
 
-      boss.setVelocityX(-100);
-      boss.setData('nextShot', this.time.now + 1000);
+        boss.setVelocityX(-100);
+        boss.setData('nextShot', this.time.now + 1000 + (i * 500));
+      }
     }
   }
 
