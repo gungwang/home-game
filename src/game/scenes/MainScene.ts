@@ -984,7 +984,7 @@ export default class MainScene extends Phaser.Scene {
     if (this.difficulty === 'NIGHTMARE') {
       damage *= 3;
     } else if (this.difficulty === 'HARD') {
-      damage *= 2;
+      damage *= 0.75;
     }
     this.damageEnemy(enemy, damage);
   }
@@ -995,7 +995,7 @@ export default class MainScene extends Phaser.Scene {
     if (this.difficulty === 'NIGHTMARE') {
       damage *= 3;
     } else if (this.difficulty === 'HARD') {
-      damage *= 2;
+      damage *= 0.75;
     }
     this.damageEnemy(enemy, damage);
   }
@@ -1239,6 +1239,15 @@ export default class MainScene extends Phaser.Scene {
         enemy.setData('points', points);
 
         enemy.setVelocityX(Phaser.Math.Between(-150, -300));
+        // Give 50% of the normal enemies a vertical velocity so they enter and move diagonally
+        if (Math.random() < 0.5) {
+          // Exclude near-zero vertical velocities for a more distinct diagonal path
+          const vy = Phaser.Math.Between(50, 150);
+          enemy.setVelocityY(Math.random() < 0.5 ? vy : -vy);
+        } else {
+          enemy.setVelocityY(0);
+        }
+        
         enemy.setData('nextShot', this.time.now + Phaser.Math.Between(1000, 3000));
       }
     }
@@ -1276,6 +1285,8 @@ export default class MainScene extends Phaser.Scene {
         boss.setData('points', 500);
 
         boss.setVelocityX(-100);
+        const vy = Phaser.Math.Between(30, 80);
+        boss.setVelocityY(Math.random() < 0.5 ? vy : -vy);
         boss.setData('nextShot', this.time.now + 1000 + (i * 500));
       }
     }
@@ -1333,6 +1344,8 @@ export default class MainScene extends Phaser.Scene {
         boss.setData('points', 1000);
 
         boss.setVelocityX(-100);
+        const vy = Phaser.Math.Between(30, 80);
+        boss.setVelocityY(Math.random() < 0.5 ? vy : -vy);
         boss.setData('nextShot', this.time.now + 1000 + (i * 500));
       }
     }
@@ -1582,7 +1595,7 @@ export default class MainScene extends Phaser.Scene {
             const margin = 30;
 
             if (isBoss) {
-              // Clamp boss to visible area so it can never escape
+              // Clamp boss to visible area horizontally
               const minX = w * 0.5;
               const maxX = w * 0.85;
               if (sprite.x <= minX) {
@@ -1595,7 +1608,7 @@ export default class MainScene extends Phaser.Scene {
                 sprite.setVelocityX(0);
               }
             } else {
-              // Normal enemies bouncing off edges so they never escape
+              // Normal enemies bouncing off horizontal edges
               if (sprite.getData('hasEnteredScreen')) {
                 // Right edge bounce
                 if (sprite.x >= w - margin) {
@@ -1612,21 +1625,21 @@ export default class MainScene extends Phaser.Scene {
               if (sprite.x <= -150) {
                 sprite.disableBody(true, true);
               }
+            }
 
-              // Top edge bounce
-              if (sprite.y <= margin) {
-                sprite.y = margin;
-                if (sprite.body && sprite.body.velocity.y < 0) {
-                  sprite.setVelocityY(Math.abs(sprite.body.velocity.y) || 100);
-                }
+            // Top edge bounce for ALL enemies
+            if (sprite.y <= margin) {
+              sprite.y = margin;
+              if (sprite.body && sprite.body.velocity.y < 0) {
+                sprite.setVelocityY(Math.abs(sprite.body.velocity.y) || 100);
               }
+            }
 
-              // Bottom edge bounce
-              if (sprite.y >= h - margin) {
-                sprite.y = h - margin;
-                if (sprite.body && sprite.body.velocity.y > 0) {
-                  sprite.setVelocityY(-Math.abs(sprite.body.velocity.y) || -100);
-                }
+            // Bottom edge bounce for ALL enemies
+            if (sprite.y >= h - margin) {
+              sprite.y = h - margin;
+              if (sprite.body && sprite.body.velocity.y > 0) {
+                sprite.setVelocityY(-Math.abs(sprite.body.velocity.y) || -100);
               }
             }
 
