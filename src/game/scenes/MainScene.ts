@@ -981,14 +981,22 @@ export default class MainScene extends Phaser.Scene {
   handleFireballHit(fireball: Phaser.Physics.Arcade.Sprite, enemy: Phaser.Physics.Arcade.Sprite) {
     fireball.disableBody(true, true);
     let damage = fireball.getData('damage') || 10;
-    if (this.difficulty === 'NIGHTMARE') damage *= 3;
+    if (this.difficulty === 'NIGHTMARE') {
+      damage *= 3;
+    } else if (this.difficulty === 'HARD') {
+      damage *= 2;
+    }
     this.damageEnemy(enemy, damage);
   }
 
   handleMissileHit(missile: Phaser.Physics.Arcade.Sprite, enemy: Phaser.Physics.Arcade.Sprite) {
     missile.disableBody(true, true);
     let damage = missile.getData('damage') || 30;
-    if (this.difficulty === 'NIGHTMARE') damage *= 3;
+    if (this.difficulty === 'NIGHTMARE') {
+      damage *= 3;
+    } else if (this.difficulty === 'HARD') {
+      damage *= 2;
+    }
     this.damageEnemy(enemy, damage);
   }
 
@@ -1566,15 +1574,17 @@ export default class MainScene extends Phaser.Scene {
     // Enemy shooting and movement logic
     this.enemies.children.each((e) => {
         const sprite = e as Phaser.Physics.Arcade.Sprite;
-        if (sprite.active && sprite.x < this.sys.canvas.width && sprite.x > 0) {
-            const nextShot = sprite.getData('nextShot');
+        if (sprite.active) {
             const isBoss = sprite.getData('isBoss');
             const isDragonBoss = sprite.texture.key === 'dragon-boss';
+            const w = this.sys.canvas.width;
+            const h = this.sys.canvas.height;
+            const margin = 30;
 
             if (isBoss) {
               // Clamp boss to visible area so it can never escape
-              const minX = this.sys.canvas.width * 0.5;
-              const maxX = this.sys.canvas.width * 0.85;
+              const minX = w * 0.5;
+              const maxX = w * 0.85;
               if (sprite.x <= minX) {
                 sprite.x = minX;
                 sprite.setVelocityX(0);
@@ -1584,18 +1594,50 @@ export default class MainScene extends Phaser.Scene {
               } else if (sprite.x < maxX) {
                 sprite.setVelocityX(0);
               }
+            } else {
+              // Normal enemies bouncing off edges so they never escape
+              if (sprite.getData('hasEnteredScreen')) {
+                // Right edge bounce
+                if (sprite.x >= w - margin) {
+                  sprite.x = w - margin;
+                  if (sprite.body && sprite.body.velocity.x > 0) {
+                    sprite.setVelocityX(-Math.abs(sprite.body.velocity.x));
+                  }
+                }
+              } else if (sprite.x < w) {
+                sprite.setData('hasEnteredScreen', true);
+              }
+
+              // Left edge cleanup: once they cross the left, they're gone.
+              if (sprite.x <= -150) {
+                sprite.disableBody(true, true);
+              }
+
+              // Top edge bounce
+              if (sprite.y <= margin) {
+                sprite.y = margin;
+                if (sprite.body && sprite.body.velocity.y < 0) {
+                  sprite.setVelocityY(Math.abs(sprite.body.velocity.y) || 100);
+                }
+              }
+
+              // Bottom edge bounce
+              if (sprite.y >= h - margin) {
+                sprite.y = h - margin;
+                if (sprite.body && sprite.body.velocity.y > 0) {
+                  sprite.setVelocityY(-Math.abs(sprite.body.velocity.y) || -100);
+                }
+              }
             }
 
-            if (time > nextShot) {
-                this.spawnEnemyBullet(sprite.x, sprite.y, isBoss || isDragonBoss);
-                const shotDelay = (isBoss || isDragonBoss) ? 1000 : Phaser.Math.Between(2000, 5000);
-                sprite.setData('nextShot', time + shotDelay);
-            }
-        }
-        if (sprite.active && sprite.x < -150) {
-            // Never remove the boss offscreen — it must be defeated
-            if (!sprite.getData('isBoss')) {
-              sprite.disableBody(true, true);
+            // Shooting logic
+            if (sprite.x < w && sprite.x > 0) {
+                const nextShot = sprite.getData('nextShot');
+                if (time > nextShot) {
+                    this.spawnEnemyBullet(sprite.x, sprite.y, isBoss || isDragonBoss);
+                    const shotDelay = (isBoss || isDragonBoss) ? 1000 : Phaser.Math.Between(2000, 5000);
+                    sprite.setData('nextShot', time + shotDelay);
+                }
             }
         }
         return true;
