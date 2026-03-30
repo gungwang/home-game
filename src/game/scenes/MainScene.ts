@@ -1060,7 +1060,7 @@ export default class MainScene extends Phaser.Scene {
 
   handleAmmoPickup(_dragon: Phaser.Physics.Arcade.Sprite, crate: Phaser.Physics.Arcade.Sprite) {
     crate.disableBody(true, true);
-    this.missileAmmo += 3;
+    this.missileAmmo = Math.min(30, this.missileAmmo + 3);
     GameEvents.emit('ammo-changed', this.missileAmmo);
   }
 
@@ -1190,7 +1190,7 @@ export default class MainScene extends Phaser.Scene {
 
     if ((this.currentLevel === this.getMaxLevel() - 1 || this.currentLevel === this.getMaxLevel()) && this.enemyCounter % 15 === 0) {
       type = 'dragon-boss';
-      health = 300;
+      health = 3000;
       damage = 30;
       points = 1000;
       width = 300;
@@ -1320,9 +1320,9 @@ export default class MainScene extends Phaser.Scene {
         bossBody.setSize(boss.width, boss.height);
         bossBody.setImmovable(true); // Can't be pushed by projectiles
 
-        let h = 300;
+        let h = 3000;
         let d = 30;
-        if (this.difficulty === 'NIGHTMARE') {
+        if (this.difficulty === 'NIGHTMARE' || this.difficulty === 'HARD') {
           h *= 2;
           d *= 2;
         }
