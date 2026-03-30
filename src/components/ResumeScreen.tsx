@@ -11,7 +11,7 @@ interface ResumeScreenProps {
 
 export default function ResumeScreen({ score, onRestart, highScores }: ResumeScreenProps) {
   return (
-    <div className="w-full min-h-screen bg-black flex items-center justify-center text-white font-mono">
+    <div className="absolute inset-0 bg-black flex items-center justify-center text-white font-mono">
       <div className="w-[85vw] h-[85vh] flex flex-col">
         <h1 className="text-5xl text-cyan-500 mb-2 tracking-widest uppercase drop-shadow-[0_0_10px_rgba(0,255,255,0.8)] text-center shrink-0">System Override Complete</h1>
         <div className="text-3xl text-yellow-400 mb-6 font-bold animate-pulse text-center shrink-0">FINAL SCORE: {score}</div>
@@ -65,8 +65,9 @@ export default function ResumeScreen({ score, onRestart, highScores }: ResumeScr
                 bio.gungwang.com
               </a>
               <a
-                href="#game-readme"
-                onClick={(e) => { e.preventDefault(); document.getElementById('game-readme')?.scrollIntoView({ behavior: 'smooth' }); }}
+                href="/README.html"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-pink-400 hover:text-pink-300 transition-colors duration-300 underline decoration-pink-900 underline-offset-4 text-4xl"
               >
                 Game README
