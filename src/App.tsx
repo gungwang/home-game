@@ -79,9 +79,18 @@ export default function App() {
   }
 
   return (
-    <div className="w-full h-screen relative bg-[#09111d] overflow-hidden">
+    <div className="w-full min-h-screen relative bg-[#09111d] overflow-x-hidden">
       {isGameOver ? (
-        <ResumeScreen score={score} onRestart={handleRestart} highScores={highScores} />
+        <>
+          <ResumeScreen score={score} onRestart={handleRestart} highScores={highScores} />
+          <iframe
+            id="game-readme"
+            src="/README.html"
+            title="Game README"
+            className="w-full border-0"
+            style={{ height: '100vh' }}
+          />
+        </>
       ) : (
         <>
           <GameCanvas />
