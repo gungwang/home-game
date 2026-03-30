@@ -3,7 +3,7 @@ import { GameEvents } from '../GameEvents';
 
 type EnvState = 'DAY' | 'SUNSET' | 'NIGHT' | 'SUNRISE';
 
-const LEVEL_COLORS = [
+const BASE_LEVEL_COLORS = [
   0x173256, // 1: Deep Blue
   0x3a1927, // 2: Deep Red
   0x173a2c, // 3: Deep Green
@@ -15,6 +15,8 @@ const LEVEL_COLORS = [
   0x242a35, // 9: Deep Gray
   0x351116  // 10: Nightmare Red
 ];
+const LEVEL_COLORS = [...BASE_LEVEL_COLORS, ...BASE_LEVEL_COLORS];
+
 
 const FAR_BACKDROP_KEYS = [
   'liberty-empire1',
@@ -71,7 +73,7 @@ interface LevelConfig {
   screenBox: { x: number; y: number; width: number; height: number };
 }
 
-const LEVELS: LevelConfig[] = [
+const BASE_LEVELS: LevelConfig[] = [
   { name: "Central Park", key: "plaza_hotel", width: 200, height: 400, screenBox: { x: 0, y: -100, width: 160, height: 120 } },
   { name: "Midtown North", key: "chrysler", width: 100, height: 400, screenBox: { x: 0, y: 0, width: 80, height: 60 } },
   { name: "Midtown South", key: "empire_state", width: 100, height: 400, screenBox: { x: 0, y: 0, width: 80, height: 60 } },
@@ -83,6 +85,8 @@ const LEVELS: LevelConfig[] = [
   { name: "Financial District", key: "one_wtc", width: 150, height: 500, screenBox: { x: 0, y: -150, width: 100, height: 75 } },
   { name: "The Battery", key: "statue_of_liberty", width: 200, height: 400, screenBox: { x: 0, y: 100, width: 120, height: 90 } } // Screen on base
 ];
+const LEVELS: LevelConfig[] = [...BASE_LEVELS, ...BASE_LEVELS];
+
 
 export default class MainScene extends Phaser.Scene {
   private dragon!: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
@@ -112,7 +116,11 @@ export default class MainScene extends Phaser.Scene {
 
   private distanceTraveled: number = 0;
   private checkpointThreshold: number = 5000;
-  private difficulty: 'NORMAL' | 'NIGHTMARE' = 'NORMAL';
+  private difficulty: 'NORMAL' | 'NIGHTMARE' | 'HARD' = 'NORMAL';
+  
+  private getMaxLevel(): number {
+    return this.difficulty === 'HARD' ? 15 : 20;
+  }
   private isGracePeriod: boolean = false;
   private isPaused: boolean = false;
   private youtubeVideos = ["4xTJ3BPCtMc","6ju5NziYYlc","9yACrRUsQoo","bzHm7JM0MI4","C9HIAUHqU7A","CSxMRjyvnPU","ESA07F5rQLk","Fp7opQZ39ds","gGXxE9OYIaM","jX1TbV26XDc","S_8-Le7xdns","8-7IZHG9j9o","weoN33Pgyt0","jFt1MWRLfDE","ftdu02JcehE","hcDVTZ7Yr-c","2xwlT2jZ-54","Vrjrvn7xDAU","8swwfMPsCDs","tzOBHFtvuZQ","oH8jJzG2hWI","i4hiaF8DeIA","dgYyBjXStJg","ApG9sE2V2V8","UfPrGFGf1Lc","Gky7LKSD70s","QSKb8XeKqHQ","f8I7YJQNuuY","w1wsycotDyA","dadf2IOIAc4","9mj9WdTuoJQ","e3S4kYhffO0","j7Bfo5HZQeg","OGR0xWjnwOM","p3epfAB-nA4","Sn-S1wt-mfo","d4OLMD78bGQ","wCw5rilQuH0","fxsYMN5ynUM","jWz5V5jWk0w","XpMECNQKjZA","Xerm3_L5l5M","3qFtJbyQ33Q","0pZ_NL3y24E","QpVm4Mf88H8","LZt_RsAwr4Q","mQa409RqQqI","TMR-IeW8xmU","4rUtjtvMkrc","QbzNvpOTG24","GQqf2psk-Bw","EVIeaEKhvKQ","fDkfD0gBHE4","3PWQBT5AScE","2DXfUDiIcsY",];
@@ -358,8 +366,8 @@ export default class MainScene extends Phaser.Scene {
 
       this.videosWatched++;
 
-      if (this.currentLevel === 10) {
-         // Video for Level 10 finished -> Game Over (Victory!)
+      if (this.currentLevel === this.getMaxLevel()) {
+         // Video for final level finished -> Game Over (Victory!)
          this.triggerGameOver();
          return;
       }
@@ -368,10 +376,13 @@ export default class MainScene extends Phaser.Scene {
       this.updateBackdropForLevel();
       this.showLevelTitle();
 
-      if (this.currentLevel === 10) {
-        // Just started Level 10 -> Spawn Boss immediately instead of normal enemies
+      if (this.currentLevel % 5 === 0) {
         this.isBossLevel = true;
-        this.spawnBoss();
+        const smallCount = this.currentLevel / 5;
+        this.spawnSmallDragonBoss(smallCount);
+        if (this.currentLevel === this.getMaxLevel()) {
+          this.spawnBoss(2);
+        }
       }
     };
     GameEvents.on('video-complete', onVideoComplete);
@@ -455,7 +466,7 @@ export default class MainScene extends Phaser.Scene {
 
     const container = this.add.container(width / 2, height / 2).setDepth(5000).setScrollFactor(0);
 
-    const bg = this.add.rectangle(0, 0, 600, 300, 0x000000, 0.9);
+    const bg = this.add.rectangle(0, 0, 800, 300, 0x000000, 0.9);
     bg.setStrokeStyle(4, 0xff00ff);
 
     const title = this.add.text(0, -80, 'SELECT DIFFICULTY', {
@@ -465,17 +476,22 @@ export default class MainScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    const normalBtn = this.add.rectangle(-150, 40, 200, 60, 0x000000, 1);
+    const normalBtn = this.add.rectangle(-250, 40, 200, 60, 0x000000, 1);
     normalBtn.setStrokeStyle(2, 0x00ffff);
     normalBtn.setInteractive({ useHandCursor: true });
-    const normalText = this.add.text(-150, 40, 'NORMAL', { fontFamily: 'monospace', fontSize: '24px', color: '#00ffff' }).setOrigin(0.5);
+    const normalText = this.add.text(-250, 40, 'NORMAL', { fontFamily: 'monospace', fontSize: '24px', color: '#00ffff' }).setOrigin(0.5);
 
-    const nightmareBtn = this.add.rectangle(150, 40, 200, 60, 0x000000, 1);
+    const hardBtn = this.add.rectangle(0, 40, 200, 60, 0x000000, 1);
+    hardBtn.setStrokeStyle(2, 0xffaa00);
+    hardBtn.setInteractive({ useHandCursor: true });
+    const hardText = this.add.text(0, 40, 'HARD', { fontFamily: 'monospace', fontSize: '24px', color: '#ffaa00' }).setOrigin(0.5);
+
+    const nightmareBtn = this.add.rectangle(250, 40, 200, 60, 0x000000, 1);
     nightmareBtn.setStrokeStyle(2, 0xff0000);
     nightmareBtn.setInteractive({ useHandCursor: true });
-    const nightmareText = this.add.text(150, 40, 'NIGHTMARE', { fontFamily: 'monospace', fontSize: '24px', color: '#ff0000' }).setOrigin(0.5);
+    const nightmareText = this.add.text(250, 40, 'NIGHTMARE', { fontFamily: 'monospace', fontSize: '24px', color: '#ff0000' }).setOrigin(0.5);
 
-    const startGame = (diff: 'NORMAL' | 'NIGHTMARE') => {
+    const startGame = (diff: 'NORMAL' | 'NIGHTMARE' | 'HARD') => {
       this.difficulty = diff;
       container.destroy();
       this.isPaused = false;
@@ -495,8 +511,12 @@ export default class MainScene extends Phaser.Scene {
     nightmareBtn.on('pointerdown', () => startGame('NIGHTMARE'));
     nightmareBtn.on('pointerover', () => nightmareBtn.setFillStyle(0xff0000, 0.2));
     nightmareBtn.on('pointerout', () => nightmareBtn.setFillStyle(0x000000, 1));
+    
+    hardBtn.on('pointerdown', () => startGame('HARD'));
+    hardBtn.on('pointerover', () => hardBtn.setFillStyle(0xffaa00, 0.2));
+    hardBtn.on('pointerout', () => hardBtn.setFillStyle(0x000000, 1));
 
-    container.add([bg, title, normalBtn, normalText, nightmareBtn, nightmareText]);
+    container.add([bg, title, normalBtn, normalText, hardBtn, hardText, nightmareBtn, nightmareText]);
   }
 
   changeWeather() {
@@ -575,7 +595,7 @@ export default class MainScene extends Phaser.Scene {
 
   applyEnvironmentStyle() {
     const style = ENV_STYLES[this.currentEnvState];
-    const levelSkyColor = LEVEL_COLORS[Math.min(this.currentLevel - 1, 9)];
+    const levelSkyColor = LEVEL_COLORS[this.currentLevel - 1];
     this.sky.setTint(levelSkyColor);
     this.farBuildings.setTint(style.farTint);
     this.nearBuildings.setTint(style.nearTint);
@@ -779,7 +799,7 @@ export default class MainScene extends Phaser.Scene {
   }
 
   showLevelTitle() {
-    if (this.currentLevel > 10) return;
+    if (this.currentLevel > this.getMaxLevel()) return;
 
     const config = LEVELS[this.currentLevel - 1];
     const width = this.sys.canvas.width;
@@ -865,7 +885,7 @@ export default class MainScene extends Phaser.Scene {
   fireFireball() {
     this.fireballSfx.play();
 
-    const fire = (x: number, y: number, angle: number = 0) => {
+    const fire = (x: number, y: number, angle: number = 0, isBlue: boolean = false) => {
       const fireball = this.fireballs.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
       if (fireball) {
         fireball.enableBody(true, x, y, true, true);
@@ -880,6 +900,14 @@ export default class MainScene extends Phaser.Scene {
         fireball.setAngle(Phaser.Math.RadToDeg(angle));
         fireball.setCollideWorldBounds(false);
         fireball.setDepth(10);
+        
+        if (isBlue) {
+          fireball.setTint(0x00ccff);
+          fireball.setData('damage', 20);
+        } else {
+          fireball.clearTint();
+          fireball.setData('damage', 10);
+        }
       }
     };
 
@@ -892,12 +920,30 @@ export default class MainScene extends Phaser.Scene {
       fire(this.dragon.x + 20, this.dragon.y, -0.1);
       fire(this.dragon.x + 20, this.dragon.y, 0);
       fire(this.dragon.x + 20, this.dragon.y, 0.1);
-    } else {
+    } else if (this.fireballLevel === 4) {
       fire(this.dragon.x + 20, this.dragon.y, -0.2);
       fire(this.dragon.x + 20, this.dragon.y, -0.1);
       fire(this.dragon.x + 20, this.dragon.y, 0);
       fire(this.dragon.x + 20, this.dragon.y, 0.1);
       fire(this.dragon.x + 20, this.dragon.y, 0.2);
+    } else if (this.fireballLevel === 5) {
+      fire(this.dragon.x + 20, this.dragon.y, -0.2);
+      fire(this.dragon.x + 20, this.dragon.y, -0.1);
+      fire(this.dragon.x + 20, this.dragon.y, 0, true);
+      fire(this.dragon.x + 20, this.dragon.y, 0.1);
+      fire(this.dragon.x + 20, this.dragon.y, 0.2);
+    } else if (this.fireballLevel === 6) {
+      fire(this.dragon.x + 20, this.dragon.y, -0.2);
+      fire(this.dragon.x + 20, this.dragon.y, -0.1, true);
+      fire(this.dragon.x + 20, this.dragon.y, 0);
+      fire(this.dragon.x + 20, this.dragon.y, 0.1, true);
+      fire(this.dragon.x + 20, this.dragon.y, 0.2);
+    } else { // 7
+      fire(this.dragon.x + 20, this.dragon.y, -0.2, true);
+      fire(this.dragon.x + 20, this.dragon.y, -0.1, true);
+      fire(this.dragon.x + 20, this.dragon.y, 0, true);
+      fire(this.dragon.x + 20, this.dragon.y, 0.1, true);
+      fire(this.dragon.x + 20, this.dragon.y, 0.2, true);
     }
   }
 
@@ -906,30 +952,43 @@ export default class MainScene extends Phaser.Scene {
       this.missileAmmo--;
       GameEvents.emit('ammo-changed', this.missileAmmo);
 
-      const missile = this.missiles.get(this.dragon.x + 20, this.dragon.y) as Phaser.Physics.Arcade.Sprite | null;
-      if (missile) {
-        missile.enableBody(true, this.dragon.x + 20, this.dragon.y, true, true);
-        const tex = 'missile_lv' + this.missileLevel;
-        const w = 40 + (this.missileLevel - 1) * 20;
-        const h = 20 + (this.missileLevel - 1) * 10;
-        missile.setTexture(tex);
-        missile.setDisplaySize(w, h);
-        missile.body?.setSize(w * 0.75, h * 0.75);
-        missile.setData('damage', 30 * this.missileLevel);
-        if (!missile.body) this.physics.add.existing(missile);
-        missile.setVelocityX(400);
+      const fireOne = (yOffset: number) => {
+        const missile = this.missiles.get(this.dragon.x + 20, this.dragon.y + yOffset) as Phaser.Physics.Arcade.Sprite | null;
+        if (missile) {
+          missile.enableBody(true, this.dragon.x + 20, this.dragon.y + yOffset, true, true);
+          const visualLevel = Math.min(this.missileLevel, 4);
+          const tex = 'missile_lv' + visualLevel;
+          const w = 40 + (visualLevel - 1) * 20;
+          const h = 20 + (visualLevel - 1) * 10;
+          missile.setTexture(tex);
+          missile.setDisplaySize(w, h);
+          missile.body?.setSize(w * 0.75, h * 0.75);
+          missile.setData('damage', 30 * this.missileLevel);
+          if (!missile.body) this.physics.add.existing(missile);
+          missile.setVelocityX(400);
+        }
+      };
+
+      if (this.missileLevel >= 5) {
+        fireOne(-15);
+        fireOne(15);
+      } else {
+        fireOne(0);
       }
     }
   }
 
   handleFireballHit(fireball: Phaser.Physics.Arcade.Sprite, enemy: Phaser.Physics.Arcade.Sprite) {
     fireball.disableBody(true, true);
-    this.damageEnemy(enemy, 10);
+    let damage = fireball.getData('damage') || 10;
+    if (this.difficulty === 'NIGHTMARE') damage *= 3;
+    this.damageEnemy(enemy, damage);
   }
 
   handleMissileHit(missile: Phaser.Physics.Arcade.Sprite, enemy: Phaser.Physics.Arcade.Sprite) {
     missile.disableBody(true, true);
-    const damage = missile.getData('damage') || 30;
+    let damage = missile.getData('damage') || 30;
+    if (this.difficulty === 'NIGHTMARE') damage *= 3;
     this.damageEnemy(enemy, damage);
   }
 
@@ -1015,7 +1074,7 @@ export default class MainScene extends Phaser.Scene {
 
   handleWeaponUpgradePickup(_dragon: Phaser.Physics.Arcade.Sprite, upgrade: Phaser.Physics.Arcade.Sprite) {
     upgrade.disableBody(true, true);
-    if (this.fireballLevel < 4) {
+    if (this.fireballLevel < 7) {
       this.fireballLevel++;
     } else {
       this.score += 50;
@@ -1028,7 +1087,7 @@ export default class MainScene extends Phaser.Scene {
 
   handleMissileUpgradePickup(_dragon: Phaser.Physics.Arcade.Sprite, upgrade: Phaser.Physics.Arcade.Sprite) {
     upgrade.disableBody(true, true);
-    if (this.missileLevel < 4) {
+    if (this.missileLevel < 5) {
       this.missileLevel++;
     } else {
       this.score += 50;
@@ -1121,7 +1180,7 @@ export default class MainScene extends Phaser.Scene {
     const levelFactor = 1 + (this.videosWatched * 0.2);
     health = Math.floor(health * levelFactor);
 
-    if ((this.currentLevel === 9 || this.currentLevel === 10) && this.enemyCounter % 15 === 0) {
+    if ((this.currentLevel === this.getMaxLevel() - 1 || this.currentLevel === this.getMaxLevel()) && this.enemyCounter % 15 === 0) {
       type = 'dragon-boss';
       health = 300;
       damage = 30;
@@ -1144,12 +1203,12 @@ export default class MainScene extends Phaser.Scene {
       height = 80;
     }
 
-    if (this.difficulty === 'NIGHTMARE') {
+    if (this.difficulty === 'NIGHTMARE' || this.difficulty === 'HARD') {
       health *= 2;
       damage *= 2;
     }
 
-    const numSpawns = this.difficulty === 'NIGHTMARE' ? (type === 'chicken' ? 2 : 3) : 1;
+    const numSpawns = (this.difficulty === 'NIGHTMARE' || this.difficulty === 'HARD') ? (type === 'chicken' ? 2 : 3) : 1;
 
     for (let i = 0; i < numSpawns; i++) {
       const y = Phaser.Math.Between(50, this.sys.canvas.height - 50);
@@ -1177,7 +1236,44 @@ export default class MainScene extends Phaser.Scene {
     }
   }
 
-  spawnBoss() {
+  spawnSmallDragonBoss(count: number) {
+    for (let i = 0; i < count; i++) {
+      const row = i % 4;
+      const col = Math.floor(i / 4);
+      const y = (this.sys.canvas.height / 5) * (row + 1);
+      const x = this.sys.canvas.width + 100 + (col * 150);
+      const boss = this.enemies.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
+
+      if (boss) {
+        boss.enableBody(true, x, y, true, true);
+        boss.setTexture('dragon-boss');
+        boss.setTint(0x66ffcc);
+        boss.setDisplaySize(140, 140);
+        boss.setAlpha(1);
+        boss.setData('isBoss', true);
+
+        const bossBody = boss.body as Phaser.Physics.Arcade.Body;
+        bossBody.setSize(boss.width, boss.height);
+        bossBody.setImmovable(true);
+
+        let h = 200;
+        let d = 20;
+        if (this.difficulty === 'NIGHTMARE' || this.difficulty === 'HARD') {
+          h = 400;
+        }
+
+        boss.setData('health', h);
+        boss.setData('maxHealth', h);
+        boss.setData('damage', d);
+        boss.setData('points', 500);
+
+        boss.setVelocityX(-100);
+        boss.setData('nextShot', this.time.now + 1000 + (i * 500));
+      }
+    }
+  }
+
+  spawnBoss(count: number = 2) {
     // Add Statue of Liberty in background as the final goal
     const liberty = this.add.image(this.sys.canvas.width + 400, this.sys.canvas.height - 200, 'statue_of_liberty');
     liberty.setDisplaySize(200, 400);
@@ -1189,7 +1285,7 @@ export default class MainScene extends Phaser.Scene {
       ease: 'Linear'
     });
 
-    let numBosses = Phaser.Math.Between(2, 3);
+    let numBosses = count;
     if (this.difficulty === 'NIGHTMARE') {
       numBosses *= 3;
     }
@@ -1268,7 +1364,7 @@ export default class MainScene extends Phaser.Scene {
   }
 
   spawnCheckpoint() {
-    if (this.currentLevel > 10) return;
+    if (this.currentLevel > this.getMaxLevel()) return;
 
     const config = LEVELS[this.currentLevel - 1];
     const x = this.sys.canvas.width + 200;
@@ -1457,12 +1553,12 @@ export default class MainScene extends Phaser.Scene {
       this.dragon.setVelocityY(speed);
     }
 
-    if (time > this.lastEnemySpawn && !this.isBossLevel && this.currentLevel < 10 && !this.isGracePeriod) {
+    if (time > this.lastEnemySpawn && !this.isBossLevel && this.currentLevel < this.getMaxLevel() && !this.isGracePeriod) {
         this.spawnEnemy();
         this.lastEnemySpawn = time + Phaser.Math.Between(1000, 3000) / (1 + this.videosWatched * 0.1);
     }
 
-    if (time > this.lastBuildingSpawn && !this.isBossLevel && this.currentLevel < 10 && !this.isGracePeriod) {
+    if (time > this.lastBuildingSpawn && !this.isBossLevel && this.currentLevel < this.getMaxLevel() && !this.isGracePeriod) {
         this.spawnBuilding();
         this.lastBuildingSpawn = time + Phaser.Math.Between(3000, 6000);
     }
