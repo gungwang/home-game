@@ -5,6 +5,10 @@
 赛博朋克风格的2D横版网页射击游戏，基于 React + Phaser 3 + TypeScript 构建。
 
 玩家操控神龙在纽约曼哈顿上空飞行，消灭变异家畜妖怪，穿越高楼大厦，每过一关观看一个YouTube音乐视频。通关后展示个人简历。
+<p>开源项目地址：<a href="https://github.com/gungwang/home-game">https://github.com/gungwang/home-game</a></p>
+<p>
+欢迎下载、二次开发和自定义功能。
+也非常欢迎你加入这个项目，一起让它变得更加完善、更有趣、更具可玩性。</p>
 
 ### 特性
 
@@ -13,7 +17,7 @@
 - **YouTube视频集成** — 每过一关在大楼表面播放YouTube MV，观看得分
 - **Boss战** — 第9关后触发Boss战，击败Boss通关
 - **个人简历展示** — 通关后显示专业简历和排行榜
-- **键盘操控** — 方向键/WASD移动，空格发射火球，M发射导弹
+- **键盘操控** — 方向键/WASD移动，鼠标左键=>发射火球，鼠标右键=>发射导弹
 
 ### 技术栈
 
@@ -69,7 +73,7 @@ The player controls a dragon flying over Manhattan, battling mutant farm animals
 - **YouTube video integration** — A YouTube MV plays on building surfaces after each checkpoint, earning bonus score
 - **Boss battle** — Boss fight triggers after checkpoint 9; defeat the boss to win
 - **Resume showcase** — Professional resume and leaderboard displayed on game completion
-- **Keyboard controls** — Arrow keys / WASD to move, Space for fireballs, M for missiles
+- **Keyboard controls** — Arrow keys / WASD to move, Left mouse button ⇒ Fire a fireball, Right mouse button ⇒ Fire a missile
 
 ### Tech Stack
 
