@@ -24,9 +24,9 @@ You pilot a dragon across Manhattan, fight mutated farm-animal monsters on rooft
 
 ## Gameplay Video
 
-<video src="./dragon-newyork1.mp4" controls muted playsinline width="100%"></video>
+![Gameplay GIF](./dragon-newyork1-gif.gif)
 
-If the embedded player does not render on your GitHub client, open the video directly: [dragon-newyork1.mp4](./dragon-newyork1.mp4)
+If the animated preview does not render on your GitHub client, open it directly: [dragon-newyork1-gif.gif](./dragon-newyork1-gif.gif)
 
 ## Highlights
 
