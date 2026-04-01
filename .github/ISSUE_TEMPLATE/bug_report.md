@@ -1,38 +1,41 @@
 ---
 name: Bug report
-about: Create a report to help us improve
-title: ''
-labels: ''
+about: Report a gameplay, UI, performance, or content issue
+title: '[Bug]: '
+labels: bug
 assignees: ''
-
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+## Summary
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
+Describe the bug clearly and briefly.
+
+## Steps To Reproduce
+
+1. Go to `...`
+2. Start `...`
+3. Trigger `...`
 4. See error
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+## Expected Behavior
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+Describe what should have happened.
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
+## Actual Behavior
 
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
+Describe what actually happened.
 
-**Additional context**
-Add any other context about the problem here.
+## Environment
+
+- OS:
+- Browser:
+- Node.js version:
+- Branch or commit:
+
+## Screenshots Or Recordings
+
+Attach screenshots, console errors, or short videos if relevant.
+
+## Additional Context
+
+Add any extra detail that may help reproduce or diagnose the issue.

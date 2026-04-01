@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Contribution guide
+    url: https://github.com/gungwang/home-game/blob/main/CONTRIBUTING.md
+    about: Read the English contribution guide before opening an issue.
+  - name: 贡献指南
+    url: https://github.com/gungwang/home-game/blob/main/CONTRIBUTING_CN.md
+    about: 提交 issue 前请先阅读中文贡献指南。

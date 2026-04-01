@@ -1,113 +1,140 @@
-# 飞龙大战纽约 | Dragon vs New York
+# Dragon vs New York
 
-## 简体中文
+[中文说明](./README_CN.md)
 
-赛博朋克风格的2D横版网页射击游戏，基于 React + Phaser 3 + TypeScript 构建。
+[![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
+![React](https://img.shields.io/badge/React-19-blue)
+![Phaser](https://img.shields.io/badge/Phaser-3-2b2d42)
+![TypeScript](https://img.shields.io/badge/TypeScript-6-3178c6)
+![Vite](https://img.shields.io/badge/Vite-8-646cff)
 
-玩家操控神龙在纽约曼哈顿上空飞行，消灭变异家畜妖怪，穿越高楼大厦，每过一关观看一个YouTube音乐视频。通关后展示个人简历。
-<p>开源项目地址：<a href="https://github.com/gungwang/home-game">https://github.com/gungwang/home-game</a></p>
-<p>
-欢迎下载、二次开发和自定义功能。
-也非常欢迎你加入这个项目，一起让它变得更加完善、更有趣、更具可玩性。</p>
+A cyberpunk-themed 2D side-scrolling web shooter built with React, Phaser 3, and TypeScript.
 
-### 特性
+You pilot a dragon across Manhattan, fight mutated farm-animal monsters on rooftops, trigger music-video moments between stages, and finish the run with a resume-style ending screen. The project is designed as both a game and a personal portfolio experience.
 
-- **赛博朋克视觉风格** — 深色背景、霓虹配色、天气系统（雨、雪、闪电）、日夜循环（白天→黄昏→夜晚→黎明）
-- **双武器系统** — 龙息火球（无限弹药）+ 龙刺导弹（有限弹药），武器可升级
-- **YouTube视频集成** — 每过一关在大楼表面播放YouTube MV，观看得分
-- **Boss战** — 第9关后触发Boss战，击败Boss通关
-- **个人简历展示** — 通关后显示专业简历和排行榜
-- **键盘操控** — 方向键/WASD移动，鼠标左键=>发射火球，鼠标右键=>发射导弹
+- GitHub: https://github.com/gungwang/home-game
+- Demo: https://gungwang.com/
 
-### 技术栈
+## Screenshots
 
-- **前端框架**: React 19 + TypeScript
-- **游戏引擎**: Phaser 3（Arcade物理引擎）
-- **构建工具**: Vite
-- **样式**: Tailwind CSS
-- **视频播放**: react-youtube
+![Gameplay screenshot 1](./image-1.png)
+![Gameplay screenshot 2](./image-2.png)
+![Gameplay screenshot 3](./image-3.png)
+![Gameplay screenshot 4](./image.png)
 
-### 快速开始
+## Gameplay Video
+
+<video src="./dragon-newyork1.mp4" controls muted playsinline width="100%"></video>
+
+If the embedded player does not render on your GitHub client, open the video directly: [dragon-newyork1.mp4](./dragon-newyork1.mp4)
+
+## Highlights
+
+- Cyberpunk Manhattan skyline with weather, lighting, and day/night transitions
+- Dual-weapon combat with fireballs, missiles, upgrades, and boss encounters
+- YouTube MV integration between level milestones
+- Resume and portfolio presentation after game completion
+- Keyboard and mouse controls for arcade-style movement and combat
+
+## Tech Stack
+
+- React 19
+- TypeScript
+- Phaser 3
+- Vite
+- Tailwind CSS
+- react-youtube
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 20 or newer recommended
+- npm 10 or newer recommended
+
+### Installation
 
 ```bash
+git clone https://github.com/gungwang/home-game.git
+cd home-game
 npm install
+```
+
+### Start the Development Server
+
+```bash
 npm run dev
 ```
 
-### 本地服务器启动
+Then open the local URL shown by Vite, usually `http://localhost:5173`.
 
-1. 安装依赖：`npm install`
-2. 启动本地开发服务器：`npm run dev`
-3. 在浏览器打开：`http://localhost:5173`
+If port `5173` is already in use, Vite automatically selects another available port.
 
-如果 5173 端口被占用，Vite 会自动切换到其他可用端口，终端里会显示实际访问地址。
-
-### 构建部署
+## Available Scripts
 
 ```bash
-npm run build
-npm run preview
+npm run dev      # start the local dev server
+npm run build    # type-check and create a production build
+npm run preview  # preview the production build locally
 ```
 
-![alt text](image-1.png)
-![alt text](image-2.png)
-![alt text](image-3.png)
-![alt text](image.png)
+## Controls
 
+- Move: `WASD` or arrow keys
+- Fireball: left mouse button
+- Missile: right mouse button
 
-### DEMO: [gungwang.com](https://gungwang.com/)
+## Project Structure
 
-
----
-
-## English
-
-A cyberpunk-themed 2D side-scrolling web shooter built with React + Phaser 3 + TypeScript.
-
-The player controls a dragon flying over Manhattan, battling mutant farm animals, weaving through skyscrapers, and watching a YouTube music video after each checkpoint. A professional resume is displayed upon completion.
-
-### Features
-
-- **Cyberpunk visuals** — Dark backgrounds, neon palette, weather system (rain, snow, lightning), day/night cycle (Day → Sunset → Night → Sunrise)
-- **Dual weapon system** — Dragon breath fireballs (unlimited) + Dragon spike missiles (limited), with weapon upgrades
-- **YouTube video integration** — A YouTube MV plays on building surfaces after each checkpoint, earning bonus score
-- **Boss battle** — Boss fight triggers after checkpoint 9; defeat the boss to win
-- **Resume showcase** — Professional resume and leaderboard displayed on game completion
-- **Keyboard controls** — Arrow keys / WASD to move, Left mouse button ⇒ Fire a fireball, Right mouse button ⇒ Fire a missile
-
-### Tech Stack
-
-- **Frontend**: React 19 + TypeScript
-- **Game Engine**: Phaser 3 (Arcade Physics)
-- **Build Tool**: Vite
-- **Styling**: Tailwind CSS
-- **Video Player**: react-youtube
-
-### Quick Start
-
-```bash
-npm install
-npm run dev
+```text
+src/
+	components/           React UI and overlay components
+	game/                 Phaser configuration, events, and scenes
+	App.tsx               top-level application shell
+public/                 sprites, backgrounds, sound effects, and icons
+docs/                   design notes and feature plans
 ```
 
-### Run Local Server
+## Architecture
 
-1. Install dependencies: `npm install`
-2. Start the local development server: `npm run dev`
-3. Open: `http://localhost:5173`
-
-If port 5173 is already in use, Vite will automatically choose another available port and print the actual local URL in the terminal.
-
-### Build & Deploy
-
-```bash
-npm run build
-npm run preview
+```mermaid
+flowchart TD
+	A[React App] --> B[GameCanvas]
+	A --> C[UIOverlay]
+	A --> D[VideoModal]
+	A --> E[ResumeScreen]
+	A --> F[BackgroundMusicPlayer]
+	B --> G[Phaser Game]
+	G --> H[GameConfig]
+	G --> I[MainScene]
+	I --> J[GameEvents]
+	J --> A
+	I --> K[Assets from public/]
+	D --> J
+	F --> J
 ```
 
-![alt text](image-1.png)
-![alt text](image-2.png)
-![alt text](image-3.png)
-![alt text](image.png)
+## Roadmap
 
-### DEMO: [gungwang.com](https://gungwang.com/)
+- Improve stage variety across Manhattan districts and boss pacing
+- Expand enemy types, attack patterns, and upgrade combinations
+- Add richer content transitions between gameplay, video moments, and resume scenes
+- Improve onboarding, difficulty tuning, and mobile-friendly presentation
+- Add stronger automation for regression checks and content QA
+
+## Development Notes
+
+- The main gameplay loop lives in `src/game/scenes/MainScene.ts`
+- React components in `src/components/` handle overlays, video playback, and resume screens
+- Vite is configured to build both the game entry page and `README.html`
+
+## Contributing
+
+Contributions, balancing ideas, bug reports, and content improvements are welcome.
+
+- Contribution guide: [CONTRIBUTING.md](./CONTRIBUTING.md)
+- Code of conduct: [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](./LICENSE) for details.
