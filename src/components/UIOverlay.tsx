@@ -18,8 +18,11 @@ export default function UIOverlay() {
   }, []);
 
   return (
-    <div className="absolute top-4 left-4 text-white text-2xl font-mono space-y-2 pointer-events-none">
-      <div className="text-pink-500">Health: {health}%</div>
+    <div
+      className="absolute top-1 left-1 text-white font-mono pointer-events-none"
+      style={{ fontSize: 'clamp(10px, 2.5vw, 24px)', lineHeight: 1.4 }}
+    >
+      <div className="text-pink-500">HP: {health}%</div>
       <div className="text-cyan-400">Score: {score}</div>
       <div className="text-yellow-400">Missiles: {ammo}</div>
     </div>
