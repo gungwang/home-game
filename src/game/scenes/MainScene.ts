@@ -156,6 +156,12 @@ export default class MainScene extends Phaser.Scene {
   private readonly DAMAGE_COOLDOWN: number = 500; // ms invincibility after taking damage
   private prevEnvState: EnvState = 'DAY';
 
+  // Mobile touch input state
+  private touchDirections: Set<string> = new Set();
+  private touchFireballHandler!: () => void;
+  private touchMissileHandler!: () => void;
+  private touchDirectionHandler!: (dirs: string[]) => void;
+
   constructor() {
     super({ key: 'MainScene' });
   }
@@ -406,10 +412,16 @@ export default class MainScene extends Phaser.Scene {
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, () => {
       GameEvents.off('video-complete', onVideoComplete);
       GameEvents.off('restart-game', onRestartGame);
+      GameEvents.off('touch-direction', this.touchDirectionHandler);
+      GameEvents.off('touch-fireball', this.touchFireballHandler);
+      GameEvents.off('touch-missile', this.touchMissileHandler);
     });
     this.events.on(Phaser.Scenes.Events.DESTROY, () => {
       GameEvents.off('video-complete', onVideoComplete);
       GameEvents.off('restart-game', onRestartGame);
+      GameEvents.off('touch-direction', this.touchDirectionHandler);
+      GameEvents.off('touch-fireball', this.touchFireballHandler);
+      GameEvents.off('touch-missile', this.touchMissileHandler);
     });
 
     // Collisions
@@ -448,6 +460,22 @@ export default class MainScene extends Phaser.Scene {
 
     GameEvents.emit('ammo-changed', this.missileAmmo);
     GameEvents.emit('health-changed', this.health);
+
+    // Mobile touch control listeners
+    this.touchDirectionHandler = (dirs: string[]) => {
+      this.touchDirections = new Set(dirs);
+    };
+    this.touchFireballHandler = () => {
+      startBgm();
+      this.fireFireball();
+    };
+    this.touchMissileHandler = () => {
+      startBgm();
+      this.fireMissile();
+    };
+    GameEvents.on('touch-direction', this.touchDirectionHandler);
+    GameEvents.on('touch-fireball', this.touchFireballHandler);
+    GameEvents.on('touch-missile', this.touchMissileHandler);
 
     // Generate hologram texture for screens
     const g = this.add.graphics();
@@ -771,6 +799,8 @@ export default class MainScene extends Phaser.Scene {
       'WASD / ARROWS : Move Dragon',
       'LEFT CLICK    : Fireball (Inf)',
       'RIGHT CLICK   : Missile (Ltd)',
+      '',
+      'MOBILE: D-Pad + 🔥 / 🚀 Buttons',
       '',
       'Collect Hearts to Heal/Buff HP',
       'Collect Stars to Upgrade Weapon',
@@ -1558,19 +1588,24 @@ export default class MainScene extends Phaser.Scene {
       return true;
     });
 
-    // Movement
+    // Movement (keyboard + touch)
     const speed = 400;
     this.dragon.setVelocity(0);
 
-    if (this.cursors.left?.isDown || (this.cursors as any).A?.isDown) {
+    const left = this.cursors.left?.isDown || (this.cursors as any).A?.isDown || this.touchDirections.has('left');
+    const right = this.cursors.right?.isDown || (this.cursors as any).D?.isDown || this.touchDirections.has('right');
+    const up = this.cursors.up?.isDown || (this.cursors as any).W?.isDown || this.touchDirections.has('up');
+    const down = this.cursors.down?.isDown || (this.cursors as any).S?.isDown || this.touchDirections.has('down');
+
+    if (left) {
       this.dragon.setVelocityX(-speed);
-    } else if (this.cursors.right?.isDown || (this.cursors as any).D?.isDown) {
+    } else if (right) {
       this.dragon.setVelocityX(speed);
     }
 
-    if (this.cursors.up?.isDown || (this.cursors as any).W?.isDown) {
+    if (up) {
       this.dragon.setVelocityY(-speed);
-    } else if (this.cursors.down?.isDown || (this.cursors as any).S?.isDown) {
+    } else if (down) {
       this.dragon.setVelocityY(speed);
     }
 
