@@ -16,10 +16,10 @@ You pilot a dragon across Manhattan, fight mutated farm-animal monsters on rooft
 - Demo: https://gungwang.com/
 
 ## Screenshots
-
-![Gameplay screenshot 1](./image-1.png)
+### Mobile Friendly & Mobile Control
+![Gameplay screenshot 1](./image-4.png)
+![Gameplay screenshot 1](./image-5.png)
 ![Gameplay screenshot 2](./image-2.png)
-![Gameplay screenshot 3](./image-3.png)
 ![Gameplay screenshot 4](./image.png)
 
 ## Gameplay Video
