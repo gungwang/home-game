@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import GameCanvas from './components/GameCanvas'
 import UIOverlay from './components/UIOverlay'
 import MobileControls from './components/MobileControls'
+import FullscreenButton from './components/FullscreenButton'
 import VideoModal from './components/VideoModal'
 import ResumeScreen from './components/ResumeScreen'
 import BackgroundMusicPlayer from './components/BackgroundMusicPlayer'
@@ -88,6 +89,7 @@ export default function App() {
           <GameCanvas />
           <UIOverlay />
           <MobileControls />
+          <FullscreenButton />
           {videoId && <VideoModal videoId={videoId} onComplete={handleVideoComplete} />}
         </>
       )}
