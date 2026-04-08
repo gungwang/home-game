@@ -1,35 +1,38 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 48">
-  <!-- Bright cyan/electric blue rat, head facing LEFT -->
+  <!-- Rat/mouse facing LEFT — pointy snout, round ears, thin tail -->
   <g transform="translate(64,0) scale(-1,1)">
-    <!-- Body -->
-    <ellipse cx="28" cy="26" rx="18" ry="12" fill="#00ccff"/>
+    <!-- Body - rounder, smaller than a cat -->
+    <ellipse cx="24" cy="28" rx="15" ry="11" fill="#00ccff"/>
     <!-- Belly -->
-    <ellipse cx="28" cy="30" rx="13" ry="7" fill="#66eeff"/>
-    <!-- Head -->
-    <ellipse cx="48" cy="20" rx="10" ry="9" fill="#00ddff"/>
-    <!-- Ears - bright -->
-    <path d="M42 12 L38 2 L46 12 Z" fill="#00bbee"/>
-    <path d="M52 12 L56 2 L48 12 Z" fill="#00bbee"/>
-    <path d="M43 12 L40 5 L45 12 Z" fill="#ff6688" opacity="0.8"/>
-    <path d="M51 12 L54 5 L49 12 Z" fill="#ff6688" opacity="0.8"/>
-    <!-- Eyes - glowing red -->
-    <circle cx="52" cy="17" r="3.5" fill="#ff1744"/>
-    <circle cx="52" cy="17" r="1.5" fill="#ffff00"/>
-    <!-- Nose -->
-    <ellipse cx="57" cy="20" rx="2.5" ry="1.8" fill="#ff6688"/>
-    <!-- Whiskers - bright -->
-    <line x1="57" y1="18" x2="64" y2="14" stroke="#88ffff" stroke-width="1"/>
-    <line x1="57" y1="20" x2="64" y2="20" stroke="#88ffff" stroke-width="1"/>
-    <line x1="57" y1="22" x2="64" y2="26" stroke="#88ffff" stroke-width="1"/>
-    <!-- Tail - bright -->
-    <path d="M10 26 Q2 18 4 8" fill="none" stroke="#00ccff" stroke-width="4" stroke-linecap="round"/>
-    <!-- Legs -->
-    <line x1="20" y1="36" x2="16" y2="44" stroke="#00bbee" stroke-width="3"/>
-    <line x1="36" y1="36" x2="40" y2="44" stroke="#00bbee" stroke-width="3"/>
-    <!-- Paws -->
-    <ellipse cx="16" cy="45" rx="4" ry="2" fill="#00bbee"/>
-    <ellipse cx="40" cy="45" rx="4" ry="2" fill="#00bbee"/>
-    <!-- Glow outline -->
-    <ellipse cx="28" cy="26" rx="20" ry="14" fill="none" stroke="#66eeff" stroke-width="1" opacity="0.4"/>
+    <ellipse cx="24" cy="32" rx="10" ry="6" fill="#66eeff"/>
+    <!-- Head - elongated/pointy for mouse look -->
+    <ellipse cx="44" cy="22" rx="12" ry="8" fill="#00ddff"/>
+    <!-- Pointy snout -->
+    <path d="M56 22 L64 20 L56 24 Z" fill="#00eeff"/>
+    <!-- Nose - pink dot at tip -->
+    <circle cx="62" cy="21" r="2.5" fill="#ff6688"/>
+    <!-- Round ears - distinctive mouse ears, rounder & bigger -->
+    <circle cx="40" cy="12" r="7" fill="#00bbee"/>
+    <circle cx="50" cy="10" r="7" fill="#00bbee"/>
+    <!-- Inner ear pink -->
+    <circle cx="40" cy="12" r="4.5" fill="#ff8899" opacity="0.7"/>
+    <circle cx="50" cy="10" r="4.5" fill="#ff8899" opacity="0.7"/>
+    <!-- Eyes - beady -->
+    <circle cx="48" cy="20" r="3" fill="#ff1744"/>
+    <circle cx="48" cy="20" r="1.3" fill="#ffff00"/>
+    <!-- Whiskers -->
+    <line x1="56" y1="19" x2="64" y2="15" stroke="#88ffff" stroke-width="0.8"/>
+    <line x1="56" y1="21" x2="64" y2="21" stroke="#88ffff" stroke-width="0.8"/>
+    <line x1="56" y1="23" x2="64" y2="27" stroke="#88ffff" stroke-width="0.8"/>
+    <!-- Thin long tail - rats have thin worm-like tails -->
+    <path d="M9 28 Q0 22 2 12 Q0 6 4 2" fill="none" stroke="#00aadd" stroke-width="2" stroke-linecap="round"/>
+    <!-- Small legs -->
+    <line x1="18" y1="37" x2="15" y2="44" stroke="#00bbee" stroke-width="2.5"/>
+    <line x1="30" y1="37" x2="33" y2="44" stroke="#00bbee" stroke-width="2.5"/>
+    <!-- Tiny paws -->
+    <ellipse cx="15" cy="45" rx="3" ry="1.5" fill="#00bbee"/>
+    <ellipse cx="33" cy="45" rx="3" ry="1.5" fill="#00bbee"/>
+    <!-- Glow -->
+    <ellipse cx="30" cy="26" rx="22" ry="14" fill="none" stroke="#66eeff" stroke-width="1" opacity="0.4"/>
   </g>
 </svg>
