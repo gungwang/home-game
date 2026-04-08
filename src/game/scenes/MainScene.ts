@@ -172,10 +172,10 @@ export default class MainScene extends Phaser.Scene {
     this.load.image('pig', 'pig.png');
     this.load.image('cow', 'cow.png');
     this.load.image('dragon-boss', 'dragon-boss.png');
-    this.load.svg('bat', 'bat.svg', { width: 64, height: 64 });
-    this.load.svg('snake', 'snake.svg', { width: 80, height: 40 });
-    this.load.svg('hawk', 'hawk.svg', { width: 64, height: 64 });
-    this.load.svg('rat', 'rat.svg', { width: 48, height: 36 });
+    this.load.svg('bat', 'bat.svg', { width: 80, height: 80 });
+    this.load.svg('snake', 'snake.svg', { width: 120, height: 60 });
+    this.load.svg('hawk', 'hawk.svg', { width: 80, height: 80 });
+    this.load.svg('rat', 'rat.svg', { width: 64, height: 48 });
     this.load.image('tv', 'tv.png');
     FAR_BACKDROP_KEYS.forEach((key) => {
       this.load.image(key, `${key}.png`);
@@ -1259,8 +1259,8 @@ export default class MainScene extends Phaser.Scene {
         health = Math.floor(8 * levelFactor);
         damage = 8;
         points = 15;
-        width = 50;
-        height = 50;
+        width = 75;
+        height = 75;
         enemyRole = 'fastFlyer';
       } else if (levelThreshold >= 4 && roll < 0.40) {
         // SNAKE — Armored tank, slow but high HP, wide body
@@ -1268,8 +1268,8 @@ export default class MainScene extends Phaser.Scene {
         health = Math.floor(80 * levelFactor);
         damage = 15;
         points = 100;
-        width = 100;
-        height = 50;
+        width = 120;
+        height = 60;
         enemyRole = 'armored';
       } else if (levelThreshold >= 3 && roll < 0.55) {
         // HAWK — Ranged attacker, stays back, shoots frequently
@@ -1277,8 +1277,8 @@ export default class MainScene extends Phaser.Scene {
         health = Math.floor(20 * levelFactor);
         damage = 12;
         points = 40;
-        width = 55;
-        height = 55;
+        width = 75;
+        height = 75;
         enemyRole = 'ranged';
       } else if (levelThreshold >= 2 && roll < 0.65) {
         // RAT — Swarm unit, tiny, spawns in packs
@@ -1286,8 +1286,8 @@ export default class MainScene extends Phaser.Scene {
         health = Math.floor(5 * levelFactor);
         damage = 5;
         points = 8;
-        width = 35;
-        height = 28;
+        width = 55;
+        height = 42;
         enemyRole = 'swarm';
       }
     }
@@ -1791,12 +1791,7 @@ export default class MainScene extends Phaser.Scene {
                 sprite.setVelocityY(Phaser.Math.Between(-40, 40));
               }
             } else if (enemyRole === 'armored') {
-              // Snakes stay at their y-band, march steadily
-              // Slight tint to indicate armor
-              if (!sprite.getData('armorTinted')) {
-                sprite.setTint(0x88cc88);
-                sprite.setData('armorTinted', true);
-              }
+              // Snakes march steadily — bright green by design, no extra tint needed
             }
 
             // Shooting logic

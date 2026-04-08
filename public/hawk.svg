@@ -1,26 +1,30 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
+  <!-- Bright hawk with orange/gold coloring, easy to see -->
   <!-- Body -->
-  <ellipse cx="32" cy="36" rx="14" ry="10" fill="#5d4037"/>
+  <ellipse cx="38" cy="44" rx="18" ry="13" fill="#ff8800"/>
   <!-- Chest -->
-  <ellipse cx="34" cy="38" rx="8" ry="7" fill="#d7ccc8"/>
+  <ellipse cx="42" cy="46" rx="11" ry="9" fill="#ffcc44"/>
   <!-- Head -->
-  <circle cx="44" cy="26" r="8" fill="#5d4037"/>
-  <!-- Beak -->
-  <path d="M52 26 L60 24 L52 28 Z" fill="#ff8f00"/>
-  <!-- Eye -->
-  <circle cx="46" cy="24" r="2.5" fill="#fff"/>
-  <circle cx="46.5" cy="24" r="1.2" fill="#111"/>
+  <circle cx="56" cy="30" r="11" fill="#ff9900"/>
+  <circle cx="56" cy="30" r="12" fill="none" stroke="#ffbb44" stroke-width="1"/>
+  <!-- Beak - bright orange -->
+  <path d="M67 30 L78 27 L67 34 Z" fill="#ff4400"/>
+  <!-- Eye - fierce -->
+  <circle cx="60" cy="27" r="3.5" fill="#fff"/>
+  <circle cx="60.5" cy="27" r="1.8" fill="#111"/>
   <!-- Eye ridge -->
-  <path d="M43 22 L49 21" fill="none" stroke="#3e2723" stroke-width="1.5"/>
-  <!-- Left wing (spread) -->
-  <path d="M20 36 Q8 24 4 30 Q8 36 12 34 Q6 28 14 32 Z" fill="#795548"/>
-  <path d="M14 32 Q4 20 2 24 Q6 28 8 26 Z" fill="#6d4c41"/>
+  <path d="M55 24 L64 22" fill="none" stroke="#cc4400" stroke-width="2.5"/>
+  <!-- Left wing (spread) - big and bright -->
+  <path d="M22 44 Q6 26 0 34 Q6 42 14 38 Q4 28 16 36 Z" fill="#ffaa22"/>
+  <path d="M16 36 Q2 18 0 24 Q6 28 8 24 Z" fill="#ff9900"/>
   <!-- Right wing -->
-  <path d="M32 30 Q28 18 36 14 Q38 22 34 28 Z" fill="#795548"/>
-  <!-- Tail feathers -->
-  <path d="M18 38 Q10 42 6 48 Q12 44 16 40 Z" fill="#6d4c41"/>
-  <path d="M18 40 Q8 46 4 52 Q12 48 16 42 Z" fill="#795548"/>
+  <path d="M38 34 Q32 18 42 12 Q46 24 40 32 Z" fill="#ffaa22"/>
+  <!-- Tail feathers - bright -->
+  <path d="M20 46 Q8 52 2 60 Q14 54 18 48 Z" fill="#ff7700"/>
+  <path d="M20 50 Q6 58 0 66 Q14 60 18 52 Z" fill="#ffaa22"/>
   <!-- Talons -->
-  <path d="M28 46 L26 52 L30 48 L28 54 L32 48" fill="none" stroke="#ff8f00" stroke-width="1.5"/>
-  <path d="M36 46 L34 52 L38 48 L36 54 L40 48" fill="none" stroke="#ff8f00" stroke-width="1.5"/>
+  <path d="M32 56 L28 66 L34 60 L30 70 L38 60" fill="none" stroke="#ff6600" stroke-width="2.5"/>
+  <path d="M44 56 L40 66 L46 60 L42 70 L50 60" fill="none" stroke="#ff6600" stroke-width="2.5"/>
+  <!-- Glow -->
+  <ellipse cx="38" cy="44" rx="20" ry="15" fill="none" stroke="#ffcc44" stroke-width="1" opacity="0.4"/>
 </svg>
