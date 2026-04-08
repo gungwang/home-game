@@ -117,7 +117,7 @@ export default class MainScene extends Phaser.Scene {
   private distanceTraveled: number = 0;
   private checkpointThreshold: number = 5000;
   private difficulty: 'NORMAL' | 'NIGHTMARE' | 'HARD' = 'NORMAL';
-  
+
   private getMaxLevel(): number {
     return this.difficulty === 'HARD' ? 15 : 20;
   }
@@ -543,7 +543,7 @@ export default class MainScene extends Phaser.Scene {
     nightmareBtn.on('pointerdown', () => startGame('NIGHTMARE'));
     nightmareBtn.on('pointerover', () => nightmareBtn.setFillStyle(0xff0000, 0.2));
     nightmareBtn.on('pointerout', () => nightmareBtn.setFillStyle(0x000000, 1));
-    
+
     hardBtn.on('pointerdown', () => startGame('HARD'));
     hardBtn.on('pointerover', () => hardBtn.setFillStyle(0xffaa00, 0.2));
     hardBtn.on('pointerout', () => hardBtn.setFillStyle(0x000000, 1));
@@ -803,9 +803,7 @@ export default class MainScene extends Phaser.Scene {
       'WASD / ARROWS : Move Dragon',
       'LEFT CLICK    : Fireball (Inf)',
       'RIGHT CLICK   : Missile (Ltd)',
-      '',
       'MOBILE: D-Pad + 🔥 / 🚀 Buttons',
-      '',
       'Collect Hearts to Heal/Buff HP',
       'Collect Stars to Upgrade Weapon',
       'Watch videos to gain points!'
@@ -934,7 +932,7 @@ export default class MainScene extends Phaser.Scene {
         fireball.setAngle(Phaser.Math.RadToDeg(angle));
         fireball.setCollideWorldBounds(false);
         fireball.setDepth(10);
-        
+
         if (isBlue) {
           fireball.setTint(0x00ccff);
           fireball.setData('damage', 20);
