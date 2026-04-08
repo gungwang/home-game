@@ -1,33 +1,35 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 48">
-  <!-- Bright cyan/electric blue rat, easy to see against dark backgrounds -->
-  <!-- Body -->
-  <ellipse cx="28" cy="26" rx="18" ry="12" fill="#00ccff"/>
-  <!-- Belly -->
-  <ellipse cx="28" cy="30" rx="13" ry="7" fill="#66eeff"/>
-  <!-- Head -->
-  <ellipse cx="48" cy="20" rx="10" ry="9" fill="#00ddff"/>
-  <!-- Ears - bright -->
-  <path d="M42 12 L38 2 L46 12 Z" fill="#00bbee"/>
-  <path d="M52 12 L56 2 L48 12 Z" fill="#00bbee"/>
-  <path d="M43 12 L40 5 L45 12 Z" fill="#ff6688" opacity="0.8"/>
-  <path d="M51 12 L54 5 L49 12 Z" fill="#ff6688" opacity="0.8"/>
-  <!-- Eyes - glowing red -->
-  <circle cx="52" cy="17" r="3.5" fill="#ff1744"/>
-  <circle cx="52" cy="17" r="1.5" fill="#ffff00"/>
-  <!-- Nose -->
-  <ellipse cx="57" cy="20" rx="2.5" ry="1.8" fill="#ff6688"/>
-  <!-- Whiskers - bright -->
-  <line x1="57" y1="18" x2="64" y2="14" stroke="#88ffff" stroke-width="1"/>
-  <line x1="57" y1="20" x2="64" y2="20" stroke="#88ffff" stroke-width="1"/>
-  <line x1="57" y1="22" x2="64" y2="26" stroke="#88ffff" stroke-width="1"/>
-  <!-- Tail - bright -->
-  <path d="M10 26 Q2 18 4 8" fill="none" stroke="#00ccff" stroke-width="4" stroke-linecap="round"/>
-  <!-- Legs -->
-  <line x1="20" y1="36" x2="16" y2="44" stroke="#00bbee" stroke-width="3"/>
-  <line x1="36" y1="36" x2="40" y2="44" stroke="#00bbee" stroke-width="3"/>
-  <!-- Paws -->
-  <ellipse cx="16" cy="45" rx="4" ry="2" fill="#00bbee"/>
-  <ellipse cx="40" cy="45" rx="4" ry="2" fill="#00bbee"/>
-  <!-- Glow outline -->
-  <ellipse cx="28" cy="26" rx="20" ry="14" fill="none" stroke="#66eeff" stroke-width="1" opacity="0.4"/>
+  <!-- Bright cyan/electric blue rat, head facing LEFT -->
+  <g transform="translate(64,0) scale(-1,1)">
+    <!-- Body -->
+    <ellipse cx="28" cy="26" rx="18" ry="12" fill="#00ccff"/>
+    <!-- Belly -->
+    <ellipse cx="28" cy="30" rx="13" ry="7" fill="#66eeff"/>
+    <!-- Head -->
+    <ellipse cx="48" cy="20" rx="10" ry="9" fill="#00ddff"/>
+    <!-- Ears - bright -->
+    <path d="M42 12 L38 2 L46 12 Z" fill="#00bbee"/>
+    <path d="M52 12 L56 2 L48 12 Z" fill="#00bbee"/>
+    <path d="M43 12 L40 5 L45 12 Z" fill="#ff6688" opacity="0.8"/>
+    <path d="M51 12 L54 5 L49 12 Z" fill="#ff6688" opacity="0.8"/>
+    <!-- Eyes - glowing red -->
+    <circle cx="52" cy="17" r="3.5" fill="#ff1744"/>
+    <circle cx="52" cy="17" r="1.5" fill="#ffff00"/>
+    <!-- Nose -->
+    <ellipse cx="57" cy="20" rx="2.5" ry="1.8" fill="#ff6688"/>
+    <!-- Whiskers - bright -->
+    <line x1="57" y1="18" x2="64" y2="14" stroke="#88ffff" stroke-width="1"/>
+    <line x1="57" y1="20" x2="64" y2="20" stroke="#88ffff" stroke-width="1"/>
+    <line x1="57" y1="22" x2="64" y2="26" stroke="#88ffff" stroke-width="1"/>
+    <!-- Tail - bright -->
+    <path d="M10 26 Q2 18 4 8" fill="none" stroke="#00ccff" stroke-width="4" stroke-linecap="round"/>
+    <!-- Legs -->
+    <line x1="20" y1="36" x2="16" y2="44" stroke="#00bbee" stroke-width="3"/>
+    <line x1="36" y1="36" x2="40" y2="44" stroke="#00bbee" stroke-width="3"/>
+    <!-- Paws -->
+    <ellipse cx="16" cy="45" rx="4" ry="2" fill="#00bbee"/>
+    <ellipse cx="40" cy="45" rx="4" ry="2" fill="#00bbee"/>
+    <!-- Glow outline -->
+    <ellipse cx="28" cy="26" rx="20" ry="14" fill="none" stroke="#66eeff" stroke-width="1" opacity="0.4"/>
+  </g>
 </svg>
