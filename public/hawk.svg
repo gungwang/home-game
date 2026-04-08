@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Body -->
+  <ellipse cx="32" cy="36" rx="14" ry="10" fill="#5d4037"/>
+  <!-- Chest -->
+  <ellipse cx="34" cy="38" rx="8" ry="7" fill="#d7ccc8"/>
+  <!-- Head -->
+  <circle cx="44" cy="26" r="8" fill="#5d4037"/>
+  <!-- Beak -->
+  <path d="M52 26 L60 24 L52 28 Z" fill="#ff8f00"/>
+  <!-- Eye -->
+  <circle cx="46" cy="24" r="2.5" fill="#fff"/>
+  <circle cx="46.5" cy="24" r="1.2" fill="#111"/>
+  <!-- Eye ridge -->
+  <path d="M43 22 L49 21" fill="none" stroke="#3e2723" stroke-width="1.5"/>
+  <!-- Left wing (spread) -->
+  <path d="M20 36 Q8 24 4 30 Q8 36 12 34 Q6 28 14 32 Z" fill="#795548"/>
+  <path d="M14 32 Q4 20 2 24 Q6 28 8 26 Z" fill="#6d4c41"/>
+  <!-- Right wing -->
+  <path d="M32 30 Q28 18 36 14 Q38 22 34 28 Z" fill="#795548"/>
+  <!-- Tail feathers -->
+  <path d="M18 38 Q10 42 6 48 Q12 44 16 40 Z" fill="#6d4c41"/>
+  <path d="M18 40 Q8 46 4 52 Q12 48 16 42 Z" fill="#795548"/>
+  <!-- Talons -->
+  <path d="M28 46 L26 52 L30 48 L28 54 L32 48" fill="none" stroke="#ff8f00" stroke-width="1.5"/>
+  <path d="M36 46 L34 52 L38 48 L36 54 L40 48" fill="none" stroke="#ff8f00" stroke-width="1.5"/>
+</svg>

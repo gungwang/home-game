@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 40">
+  <!-- Body segments -->
+  <ellipse cx="14" cy="20" rx="10" ry="8" fill="#2d6b30"/>
+  <ellipse cx="26" cy="20" rx="10" ry="9" fill="#358538"/>
+  <ellipse cx="38" cy="20" rx="10" ry="10" fill="#3a9a3e"/>
+  <ellipse cx="50" cy="20" rx="10" ry="9" fill="#358538"/>
+  <ellipse cx="62" cy="20" rx="10" ry="8" fill="#2d6b30"/>
+  <!-- Scales/armor plates -->
+  <path d="M20 12 L26 8 L32 12 Z" fill="#1a4a1d" opacity="0.6"/>
+  <path d="M32 10 L38 6 L44 10 Z" fill="#1a4a1d" opacity="0.6"/>
+  <path d="M44 12 L50 8 L56 12 Z" fill="#1a4a1d" opacity="0.6"/>
+  <!-- Belly -->
+  <ellipse cx="38" cy="24" rx="28" ry="5" fill="#8bc34a" opacity="0.5"/>
+  <!-- Head -->
+  <ellipse cx="72" cy="20" rx="8" ry="7" fill="#3a9a3e"/>
+  <!-- Eyes -->
+  <circle cx="74" cy="17" r="2.5" fill="#ffcc00"/>
+  <circle cx="74" cy="17" r="1" fill="#111"/>
+  <!-- Tongue -->
+  <path d="M80 20 L78 18 L80 16" fill="none" stroke="#ff3333" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Tail -->
+  <path d="M4 20 Q-2 16 0 12" fill="none" stroke="#2d6b30" stroke-width="3" stroke-linecap="round"/>
+</svg>

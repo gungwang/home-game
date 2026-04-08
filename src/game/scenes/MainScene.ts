@@ -172,6 +172,10 @@ export default class MainScene extends Phaser.Scene {
     this.load.image('pig', 'pig.png');
     this.load.image('cow', 'cow.png');
     this.load.image('dragon-boss', 'dragon-boss.png');
+    this.load.svg('bat', 'bat.svg', { width: 64, height: 64 });
+    this.load.svg('snake', 'snake.svg', { width: 80, height: 40 });
+    this.load.svg('hawk', 'hawk.svg', { width: 64, height: 64 });
+    this.load.svg('rat', 'rat.svg', { width: 48, height: 36 });
     this.load.image('tv', 'tv.png');
     FAR_BACKDROP_KEYS.forEach((key) => {
       this.load.image(key, `${key}.png`);
@@ -1040,6 +1044,10 @@ export default class MainScene extends Phaser.Scene {
     if (health <= 0) {
       this.killEnemy(enemy);
     } else {
+      const enemyRole = enemy.getData('enemyRole') as string | undefined;
+      // Armored enemies (snakes) don't flinch
+      if (enemyRole === 'armored') return;
+
       if (!enemy.getData('hasBeenHit') && !enemy.getData('isBoss')) {
         enemy.setData('hasBeenHit', true);
         const reaction = Phaser.Math.Between(0, 5);
@@ -1213,6 +1221,7 @@ export default class MainScene extends Phaser.Scene {
     let points = 10;
     let width = 60;
     let height = 60;
+    let enemyRole: 'normal' | 'fastFlyer' | 'armored' | 'ranged' | 'swarm' = 'normal';
 
     // Difficulty increases with levels
     const levelFactor = 1 + (this.videosWatched * 0.2);
@@ -1239,6 +1248,48 @@ export default class MainScene extends Phaser.Scene {
       points = 50;
       width = 80;
       height = 80;
+    } else {
+      // New enemy types mixed in based on level progression & random roll
+      const roll = Math.random();
+      const levelThreshold = this.currentLevel;
+
+      if (levelThreshold >= 2 && roll < 0.25) {
+        // BAT — Fast flyer, sine-wave movement, low HP, high speed
+        type = 'bat';
+        health = Math.floor(8 * levelFactor);
+        damage = 8;
+        points = 15;
+        width = 50;
+        height = 50;
+        enemyRole = 'fastFlyer';
+      } else if (levelThreshold >= 4 && roll < 0.40) {
+        // SNAKE — Armored tank, slow but high HP, wide body
+        type = 'snake';
+        health = Math.floor(80 * levelFactor);
+        damage = 15;
+        points = 100;
+        width = 100;
+        height = 50;
+        enemyRole = 'armored';
+      } else if (levelThreshold >= 3 && roll < 0.55) {
+        // HAWK — Ranged attacker, stays back, shoots frequently
+        type = 'hawk';
+        health = Math.floor(20 * levelFactor);
+        damage = 12;
+        points = 40;
+        width = 55;
+        height = 55;
+        enemyRole = 'ranged';
+      } else if (levelThreshold >= 2 && roll < 0.65) {
+        // RAT — Swarm unit, tiny, spawns in packs
+        type = 'rat';
+        health = Math.floor(5 * levelFactor);
+        damage = 5;
+        points = 8;
+        width = 35;
+        height = 28;
+        enemyRole = 'swarm';
+      }
     }
 
     if (this.difficulty === 'NIGHTMARE' || this.difficulty === 'HARD') {
@@ -1246,11 +1297,17 @@ export default class MainScene extends Phaser.Scene {
       damage *= 2;
     }
 
-    const numSpawns = (this.difficulty === 'NIGHTMARE' || this.difficulty === 'HARD') ? (type === 'chicken' ? 2 : 3) : 1;
+    // Swarm enemies spawn in packs of 3-5
+    let numSpawns: number;
+    if (enemyRole === 'swarm') {
+      numSpawns = Phaser.Math.Between(3, 5);
+    } else {
+      numSpawns = (this.difficulty === 'NIGHTMARE' || this.difficulty === 'HARD') ? (type === 'chicken' ? 2 : 3) : 1;
+    }
 
     for (let i = 0; i < numSpawns; i++) {
       const y = Phaser.Math.Between(50, this.sys.canvas.height - 50);
-      const x = this.sys.canvas.width + 50 + (i * 80);
+      const x = this.sys.canvas.width + 50 + (i * (enemyRole === 'swarm' ? 40 : 80));
       const enemy = this.enemies.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
 
       if (enemy) {
@@ -1259,6 +1316,9 @@ export default class MainScene extends Phaser.Scene {
         enemy.setDisplaySize(width, height);
         enemy.setAlpha(0.8);
         enemy.setData('isBoss', false);
+        enemy.setData('enemyRole', enemyRole);
+        enemy.setData('spawnTime', this.time.now);
+        enemy.setData('baseY', y);
 
         // Sync collision body to display size
         enemy.body?.setSize(enemy.width, enemy.height);
@@ -1268,17 +1328,51 @@ export default class MainScene extends Phaser.Scene {
         enemy.setData('damage', damage);
         enemy.setData('points', points);
 
-        enemy.setVelocityX(Phaser.Math.Between(-150, -300));
-        // Give 50% of the normal enemies a vertical velocity so they enter and move diagonally
-        if (Math.random() < 0.5) {
-          // Exclude near-zero vertical velocities for a more distinct diagonal path
-          const vy = Phaser.Math.Between(50, 150);
-          enemy.setVelocityY(Math.random() < 0.5 ? vy : -vy);
-        } else {
-          enemy.setVelocityY(0);
+        // Role-specific velocity & behaviour setup
+        switch (enemyRole) {
+          case 'fastFlyer': {
+            // Bats are fast with sine-wave vertical movement (handled in update)
+            enemy.setVelocityX(Phaser.Math.Between(-350, -500));
+            enemy.setVelocityY(0); // sine-wave applied in update
+            break;
+          }
+          case 'armored': {
+            // Snakes are slow, march straight
+            enemy.setVelocityX(Phaser.Math.Between(-80, -130));
+            enemy.setVelocityY(0);
+            break;
+          }
+          case 'ranged': {
+            // Hawks enter then slow down to hover and shoot
+            enemy.setVelocityX(-200);
+            enemy.setVelocityY(Phaser.Math.Between(-30, 30));
+            break;
+          }
+          case 'swarm': {
+            // Rats rush fast in a tight pack
+            enemy.setVelocityX(Phaser.Math.Between(-250, -400));
+            const vy = Phaser.Math.Between(40, 120);
+            enemy.setVelocityY(Math.random() < 0.5 ? vy : -vy);
+            break;
+          }
+          default: {
+            enemy.setVelocityX(Phaser.Math.Between(-150, -300));
+            // Give 50% of the normal enemies a vertical velocity so they enter and move diagonally
+            if (Math.random() < 0.5) {
+              const vy = Phaser.Math.Between(50, 150);
+              enemy.setVelocityY(Math.random() < 0.5 ? vy : -vy);
+            } else {
+              enemy.setVelocityY(0);
+            }
+            break;
+          }
         }
-        
-        enemy.setData('nextShot', this.time.now + Phaser.Math.Between(1000, 3000));
+
+        // Shooting cooldown — ranged enemies shoot more frequently
+        const baseShotDelay = enemyRole === 'ranged'
+          ? Phaser.Math.Between(600, 1500)
+          : Phaser.Math.Between(1000, 3000);
+        enemy.setData('nextShot', this.time.now + baseShotDelay);
       }
     }
   }
@@ -1678,12 +1772,51 @@ export default class MainScene extends Phaser.Scene {
               }
             }
 
+            // Role-specific movement updates
+            const enemyRole = sprite.getData('enemyRole') as string | undefined;
+
+            if (enemyRole === 'fastFlyer') {
+              // Sine-wave vertical movement for bats
+              const spawnTime = sprite.getData('spawnTime') || 0;
+              const baseY = sprite.getData('baseY') || sprite.y;
+              const wave = Math.sin((time - spawnTime) * 0.005) * 80;
+              sprite.y = Phaser.Math.Clamp(baseY + wave, margin, h - margin);
+            } else if (enemyRole === 'ranged' && !isBoss) {
+              // Hawks slow down once they enter the screen to hover & shoot
+              if (sprite.x < w * 0.75 && sprite.body && sprite.body.velocity.x < -60) {
+                sprite.setVelocityX(-40);
+              }
+              // Gentle vertical drift
+              if (sprite.body && Math.abs(sprite.body.velocity.y) < 10) {
+                sprite.setVelocityY(Phaser.Math.Between(-40, 40));
+              }
+            } else if (enemyRole === 'armored') {
+              // Snakes stay at their y-band, march steadily
+              // Slight tint to indicate armor
+              if (!sprite.getData('armorTinted')) {
+                sprite.setTint(0x88cc88);
+                sprite.setData('armorTinted', true);
+              }
+            }
+
             // Shooting logic
             if (sprite.x < w && sprite.x > 0) {
                 const nextShot = sprite.getData('nextShot');
                 if (time > nextShot) {
-                    this.spawnEnemyBullet(sprite.x, sprite.y, isBoss || isDragonBoss);
-                    const shotDelay = (isBoss || isDragonBoss) ? 1000 : Phaser.Math.Between(2000, 5000);
+                    // Swarm enemies don't shoot; armored enemies shoot slow
+                    if (enemyRole !== 'swarm') {
+                      this.spawnEnemyBullet(sprite.x, sprite.y, isBoss || isDragonBoss);
+                    }
+                    let shotDelay: number;
+                    if (isBoss || isDragonBoss) {
+                      shotDelay = 1000;
+                    } else if (enemyRole === 'ranged') {
+                      shotDelay = Phaser.Math.Between(800, 1800);
+                    } else if (enemyRole === 'armored') {
+                      shotDelay = Phaser.Math.Between(3000, 5000);
+                    } else {
+                      shotDelay = Phaser.Math.Between(2000, 5000);
+                    }
                     sprite.setData('nextShot', time + shotDelay);
                 }
             }

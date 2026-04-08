@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Body -->
+  <ellipse cx="32" cy="34" rx="10" ry="8" fill="#2d1b4e"/>
+  <!-- Left wing -->
+  <path d="M22 34 Q10 20 4 28 Q8 32 14 30 Q10 24 18 30 Z" fill="#4a2d7a" opacity="0.9"/>
+  <path d="M18 30 Q6 18 2 22 Q6 26 10 24 Z" fill="#3a1f6a" opacity="0.8"/>
+  <!-- Right wing -->
+  <path d="M42 34 Q54 20 60 28 Q56 32 50 30 Q54 24 46 30 Z" fill="#4a2d7a" opacity="0.9"/>
+  <path d="M46 30 Q58 18 62 22 Q58 26 54 24 Z" fill="#3a1f6a" opacity="0.8"/>
+  <!-- Eyes -->
+  <circle cx="28" cy="31" r="3" fill="#ff4444"/>
+  <circle cx="36" cy="31" r="3" fill="#ff4444"/>
+  <circle cx="28" cy="30.5" r="1.2" fill="#ffff00"/>
+  <circle cx="36" cy="30.5" r="1.2" fill="#ffff00"/>
+  <!-- Ears -->
+  <path d="M26 26 L24 18 L30 26 Z" fill="#2d1b4e"/>
+  <path d="M38 26 L40 18 L34 26 Z" fill="#2d1b4e"/>
+  <!-- Fangs -->
+  <path d="M29 38 L30 43 L31 38 Z" fill="white"/>
+  <path d="M33 38 L34 43 L35 38 Z" fill="white"/>
+</svg>
