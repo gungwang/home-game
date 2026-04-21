@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { GameEvents } from '../GameEvents';
+import { YOUTUBE_VIDEOS } from '../youtubeVideos';
 
 type EnvState = 'DAY' | 'SUNSET' | 'NIGHT' | 'SUNRISE';
 
@@ -123,7 +124,7 @@ export default class MainScene extends Phaser.Scene {
   }
   private isGracePeriod: boolean = false;
   private isPaused: boolean = false;
-  private youtubeVideos = ["4xTJ3BPCtMc","6ju5NziYYlc","9yACrRUsQoo","bzHm7JM0MI4","C9HIAUHqU7A","CSxMRjyvnPU","ESA07F5rQLk","Fp7opQZ39ds","gGXxE9OYIaM","jX1TbV26XDc","S_8-Le7xdns","8-7IZHG9j9o","weoN33Pgyt0","jFt1MWRLfDE","ftdu02JcehE","hcDVTZ7Yr-c","2xwlT2jZ-54","Vrjrvn7xDAU","8swwfMPsCDs","tzOBHFtvuZQ","oH8jJzG2hWI","i4hiaF8DeIA","dgYyBjXStJg","ApG9sE2V2V8","UfPrGFGf1Lc","Gky7LKSD70s","QSKb8XeKqHQ","f8I7YJQNuuY","w1wsycotDyA","dadf2IOIAc4","9mj9WdTuoJQ","e3S4kYhffO0","j7Bfo5HZQeg","OGR0xWjnwOM","p3epfAB-nA4","Sn-S1wt-mfo","d4OLMD78bGQ","wCw5rilQuH0","fxsYMN5ynUM","jWz5V5jWk0w","XpMECNQKjZA","Xerm3_L5l5M","3qFtJbyQ33Q","0pZ_NL3y24E","QpVm4Mf88H8","LZt_RsAwr4Q","mQa409RqQqI","TMR-IeW8xmU","4rUtjtvMkrc","QbzNvpOTG24","GQqf2psk-Bw","EVIeaEKhvKQ","fDkfD0gBHE4","3PWQBT5AScE","2DXfUDiIcsY",];
+  private readonly youtubeVideos = YOUTUBE_VIDEOS;
 
   private videosWatched: number = 0;
   private bgmStarted: boolean = false;
@@ -142,6 +143,16 @@ export default class MainScene extends Phaser.Scene {
   private maxHealth: number = 100;
   private weaponUpgrades!: Phaser.Physics.Arcade.Group;
   private healthPacks!: Phaser.Physics.Arcade.Group;
+
+  // Shield (HARD / NIGHTMARE only)
+  private shieldCount: number = 0;
+  private isShieldActive: boolean = false;
+  private shieldPacks!: Phaser.Physics.Arcade.Group;
+  private shieldGraphic!: Phaser.GameObjects.Graphics;
+  private shieldTween: Phaser.Tweens.Tween | null = null;
+  private touchShieldHandler!: () => void;
+  // Tracks whether each mouse button is currently held (for simultaneous L+R detection)
+  private mouseButtons: Set<number> = new Set();
 
   // Environmental Properties
   private envCycleTimer: number = 0;
@@ -187,6 +198,7 @@ export default class MainScene extends Phaser.Scene {
     this.load.svg('missile_lv4', 'missile_lv4.svg', { width: 100, height: 50 });
     this.load.svg('missile_upgrade', 'missile_upgrade.svg', { width: 30, height: 30 });
     this.load.svg('ammoCrate', 'ammoCrate.svg', { width: 30, height: 30 });
+    this.load.svg('shield_pack', 'shield_pack.svg', { width: 32, height: 32 });
 
     // NYC Buildings & Landmarks
     LEVELS.forEach(level => {
@@ -355,6 +367,20 @@ export default class MainScene extends Phaser.Scene {
     this.weaponUpgrades = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: -1 });
     this.missileUpgrades = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: -1 });
     this.healthPacks = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: -1 });
+    this.shieldPacks = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: -1 });
+
+    // Shield arc — drawn once, updated each frame relative to dragon
+    this.shieldGraphic = this.add.graphics().setDepth(200);
+
+    // Pre-warm shield pack pool so the first drop doesn't cause a GC spike
+    for (let i = 0; i < 4; i++) {
+      const s = this.shieldPacks.get(-2000, -2000) as Phaser.Physics.Arcade.Sprite | null;
+      if (s) {
+        s.setTexture('shield_pack');
+        s.setDisplaySize(28, 28);
+        s.disableBody(true, true);
+      }
+    }
 
     // Clean up any lingering listeners
     GameEvents.off('video-complete');
@@ -403,6 +429,8 @@ export default class MainScene extends Phaser.Scene {
       this.fireballLevel = 1;
       this.missileLevel = 1;
       this.missileAmmo = 3;
+      this.shieldCount = 0;
+      this.isShieldActive = false;
       this.currentLevel = 1;
       this.videosWatched = 0;
       this.distanceTraveled = 0;
@@ -419,6 +447,7 @@ export default class MainScene extends Phaser.Scene {
       GameEvents.off('touch-direction', this.touchDirectionHandler);
       GameEvents.off('touch-fireball', this.touchFireballHandler);
       GameEvents.off('touch-missile', this.touchMissileHandler);
+      GameEvents.off('touch-shield', this.touchShieldHandler);
     });
     this.events.on(Phaser.Scenes.Events.DESTROY, () => {
       GameEvents.off('video-complete', onVideoComplete);
@@ -426,6 +455,7 @@ export default class MainScene extends Phaser.Scene {
       GameEvents.off('touch-direction', this.touchDirectionHandler);
       GameEvents.off('touch-fireball', this.touchFireballHandler);
       GameEvents.off('touch-missile', this.touchMissileHandler);
+      GameEvents.off('touch-shield', this.touchShieldHandler);
     });
 
     // Collisions
@@ -436,6 +466,7 @@ export default class MainScene extends Phaser.Scene {
     this.physics.add.overlap(this.dragon, this.weaponUpgrades, this.handleWeaponUpgradePickup as any, undefined, this);
     this.physics.add.overlap(this.dragon, this.missileUpgrades, this.handleMissileUpgradePickup as any, undefined, this);
     this.physics.add.overlap(this.dragon, this.healthPacks, this.handleHealthPickup as any, undefined, this);
+    this.physics.add.overlap(this.dragon, this.shieldPacks, this.handleShieldPickup as any, undefined, this);
     this.physics.add.collider(this.dragon, this.buildings, this.handleBuildingHit as any, undefined, this);
     this.physics.add.collider(this.dragon, this.enemyBullets, this.handleEnemyBulletHit as any, undefined, this);
 
@@ -449,11 +480,20 @@ export default class MainScene extends Phaser.Scene {
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       startBgm();
+      this.mouseButtons.add(pointer.button);
+      // Left (0) + Right (2) simultaneously → activate shield
+      if (this.mouseButtons.has(0) && this.mouseButtons.has(2)) {
+        this.activateShield();
+        return;
+      }
       if (pointer.rightButtonDown()) {
         this.fireMissile();
       } else {
         this.fireFireball();
       }
+    });
+    this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+      this.mouseButtons.delete(pointer.button);
     });
 
     if (this.input.keyboard) {
@@ -477,9 +517,14 @@ export default class MainScene extends Phaser.Scene {
       startBgm();
       this.fireMissile();
     };
+    this.touchShieldHandler = () => {
+      startBgm();
+      this.activateShield();
+    };
     GameEvents.on('touch-direction', this.touchDirectionHandler);
     GameEvents.on('touch-fireball', this.touchFireballHandler);
     GameEvents.on('touch-missile', this.touchMissileHandler);
+    GameEvents.on('touch-shield', this.touchShieldHandler);
 
     // Generate hologram texture for screens
     const g = this.add.graphics();
@@ -858,18 +903,118 @@ export default class MainScene extends Phaser.Scene {
     });
   }
 
+  /** Returns duration (ms) for shield at current level in HARD/NIGHTMARE modes */
+  private getShieldDuration(): number {
+    const maxLvl = this.getMaxLevel();
+    const lv = this.currentLevel;
+    // Last 3 levels → 5s; scale from 1s at lv1 upward in 3-level steps
+    if (lv >= maxLvl - 2) return 5000;
+    return Math.min(1 + Math.floor((lv - 1) / 3), 4) * 1000;
+  }
+
+  activateShield() {
+    if (this.difficulty === 'NORMAL') return;
+    if (this.shieldCount <= 0) return;
+    if (this.isShieldActive) return; // already shielded
+
+    this.shieldCount--;
+    GameEvents.emit('shields-changed', this.shieldCount);
+
+    this.isShieldActive = true;
+    const duration = this.getShieldDuration();
+
+    // Draw the arc ONCE at local coords; only reposition in update (no per-frame redraw)
+    this.drawShieldArcLocal();
+    this.shieldGraphic.setPosition(this.dragon.x, this.dragon.y);
+
+    // Pulsing glow tween on the graphics alpha
+    this.shieldTween = this.tweens.add({
+      targets: this.shieldGraphic,
+      alpha: { from: 0.5, to: 1 },
+      duration: 220,
+      yoyo: true,
+      repeat: -1,
+    });
+
+    // Expire after duration
+    this.time.delayedCall(duration, () => {
+      this.isShieldActive = false;
+      if (this.shieldTween) {
+        this.shieldTween.stop();
+        this.shieldTween = null;
+      }
+      this.shieldGraphic.clear();
+      this.shieldGraphic.setAlpha(1);
+    });
+  }
+
+  /**
+   * Draws the shield arc once at LOCAL coordinates (origin = dragon centre).
+   * The Graphics object is then repositioned each frame via setPosition — no redraw.
+   */
+  private drawShieldArcLocal() {
+    const g = this.shieldGraphic;
+    g.clear();
+    const ox = this.dragon.displayWidth * 0.35; // local x offset from dragon centre
+    const oy = 0;
+    const r = this.dragon.displayHeight * 0.72;
+    // Outer glow ring
+    g.lineStyle(6, 0x00ffff, 0.3);
+    g.beginPath();
+    g.arc(ox, oy, r + 4, -Math.PI / 2, Math.PI / 2, false);
+    g.strokePath();
+    // Main arc
+    g.lineStyle(3, 0x00eeff, 0.9);
+    g.beginPath();
+    g.arc(ox, oy, r, -Math.PI / 2, Math.PI / 2, false);
+    g.strokePath();
+    // Inner shimmer
+    g.lineStyle(1.5, 0xffffff, 0.6);
+    g.beginPath();
+    g.arc(ox, oy, r - 5, -Math.PI / 2, Math.PI / 2, false);
+    g.strokePath();
+    // Fill the half-dome with very faint cyan
+    g.fillStyle(0x00ccff, 0.08);
+    g.beginPath();
+    g.moveTo(ox, oy - r);
+    g.arc(ox, oy, r, -Math.PI / 2, Math.PI / 2, false);
+    g.lineTo(ox, oy + r);
+    g.fillPath();
+  }
+
+  handleShieldPickup(_dragon: Phaser.Physics.Arcade.Sprite, pack: Phaser.Physics.Arcade.Sprite) {
+    pack.disableBody(true, true);
+    this.shieldCount++;
+    GameEvents.emit('shields-changed', this.shieldCount);
+    // Visual feedback — cyan-white flash
+    this.dragon.setTint(0xaaffff);
+    this.time.delayedCall(250, () => this.dragon.clearTint());
+  }
+
+  spawnShieldPack(x: number, y: number) {
+    const pack = this.shieldPacks.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
+    if (pack) {
+      pack.enableBody(true, x, y, true, true);
+      pack.setTexture('shield_pack');
+      pack.setDisplaySize(28, 28);
+      pack.setVelocityX(-110);
+    }
+  }
+
   takeDamage(amount: number) {
+    if (this.isShieldActive) return; // shield absorbs everything
     const now = this.time.now;
     if (now - this.lastDamageTime < this.DAMAGE_COOLDOWN) return;
     this.lastDamageTime = now;
 
     this.health -= amount;
 
-    // Weapon downgrade on hit
-    if (this.fireballLevel > 1) {
+    // Weapon downgrade on hit (HARD/NIGHTMARE floor is 2; NORMAL floor is 1)
+    const weaponFloor = (this.difficulty === 'HARD' || this.difficulty === 'NIGHTMARE') ? 2 : 1;
+    if (this.fireballLevel > weaponFloor) {
       this.fireballLevel--;
     }
-    if (this.missileLevel > 1) {
+    if (this.missileLevel > weaponFloor) {
       this.missileLevel--;
     }
 
@@ -1181,6 +1326,9 @@ export default class MainScene extends Phaser.Scene {
       this.spawnPowerUp(enemy.x, enemy.y, 'health_pack');
     } else if (rand < 0.30) {
       this.spawnAmmoCrate(enemy.x, enemy.y);
+    } else if (rand < 0.32 && (this.difficulty === 'HARD' || this.difficulty === 'NIGHTMARE')) {
+      // Shield drop: ~2% chance, only in HARD/NIGHTMARE
+      this.spawnShieldPack(enemy.x, enemy.y);
     }
   }
 
@@ -1601,10 +1749,11 @@ export default class MainScene extends Phaser.Scene {
       this.currentEnvState = 'SUNRISE';
     }
 
-    // Detect state transition and update weather
+    // Detect state transition and update weather/style
     if (this.currentEnvState !== this.prevEnvState) {
       this.prevEnvState = this.currentEnvState;
       this.applyWeatherForState();
+      this.applyEnvironmentStyle(); // only on change, not every frame
     }
 
     // Random Lightning during NIGHT and SUNSET
@@ -1613,8 +1762,6 @@ export default class MainScene extends Phaser.Scene {
       this.triggerLightning();
       this.lastLightningTime = time;
     }
-
-    this.applyEnvironmentStyle();
 
     // Drifting Clouds
     if (Phaser.Math.Between(0, 500) === 0) {
@@ -1701,7 +1848,8 @@ export default class MainScene extends Phaser.Scene {
       this.dragon.setVelocityY(speed);
     }
 
-    if (time > this.lastEnemySpawn && !this.isBossLevel && this.currentLevel < this.getMaxLevel() && !this.isGracePeriod) {
+    if (time > this.lastEnemySpawn && !this.isBossLevel && this.currentLevel < this.getMaxLevel() && !this.isGracePeriod
+        && this.enemies.countActive() < 28) {
         this.spawnEnemy();
         this.lastEnemySpawn = time + Phaser.Math.Between(1000, 3000) / (1 + this.videosWatched * 0.1);
     }
@@ -1839,6 +1987,12 @@ export default class MainScene extends Phaser.Scene {
     cleanOffscreen(this.weaponUpgrades, -50, false);
     cleanOffscreen(this.missileUpgrades, -50, false);
     cleanOffscreen(this.healthPacks, -50, false);
+    cleanOffscreen(this.shieldPacks, -50, false);
     cleanOffscreen(this.buildings, -100, false);
+
+    // Follow dragon with shield arc — just reposition, no redraw
+    if (this.isShieldActive) {
+      this.shieldGraphic.setPosition(this.dragon.x, this.dragon.y);
+    }
   }
 }
