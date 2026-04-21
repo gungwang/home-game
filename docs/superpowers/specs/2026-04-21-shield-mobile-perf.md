@@ -71,7 +71,7 @@ Formula: `Math.min(1 + Math.floor((currentLevel - 1) / 3), 4) * 1000` ms, clampe
 | Desktop | Left mouse button + Right mouse button simultaneously |
 | Mobile | 🔥 (fireball) button + 🚀 (missile) button simultaneously |
 
-Desktop: tracks held mouse buttons via `mouseButtons: Set<number>` — both 0 and 2 present → activate.  
+Desktop: tracks held mouse buttons via `mouseButtons: Set<number>` — both 0 and 2 present → activate.
 Mobile: `actionHeld` ref in `MobileControls.tsx` — both `fireball` and `missile` flags set within same press window → emits `touch-shield` GameEvent.
 
 ### Drop rate
