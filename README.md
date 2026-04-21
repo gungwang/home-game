@@ -138,3 +138,6 @@ Contributions, balancing ideas, bug reports, and content improvements are welcom
 ## License
 
 This project is licensed under the MIT License. See [LICENSE](./LICENSE) for details.
+
+## deploy to cloudflare website
+npm run build && npx wrangler pages deploy dist --project-name=dragon-game --commit-dirty=true 2>&1 | cat
