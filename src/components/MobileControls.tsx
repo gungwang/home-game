@@ -57,20 +57,28 @@ export default function MobileControls() {
 
   const onDpadTouchStart = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
-    emitDirs(getDirsFromTouch(e.touches[0]));
+    // Use targetTouches (touches on THIS element only), not touches (all screen touches).
+    // Without this, a fireball-button touch registered first becomes touches[0] and
+    // gets incorrectly read as a d-pad direction (usually "right").
+    if (e.targetTouches.length > 0) {
+      emitDirs(getDirsFromTouch(e.targetTouches[0]));
+    }
   }, [getDirsFromTouch, emitDirs]);
 
   const onDpadTouchMove = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
-    emitDirs(getDirsFromTouch(e.touches[0]));
+    if (e.targetTouches.length > 0) {
+      emitDirs(getDirsFromTouch(e.targetTouches[0]));
+    }
   }, [getDirsFromTouch, emitDirs]);
 
   const onDpadTouchEnd = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
-    if (e.touches.length === 0) {
+    // targetTouches is empty when last finger lifts off the d-pad
+    if (e.targetTouches.length === 0) {
       clearAllDirections();
     } else {
-      emitDirs(getDirsFromTouch(e.touches[0]));
+      emitDirs(getDirsFromTouch(e.targetTouches[0]));
     }
   }, [getDirsFromTouch, emitDirs, clearAllDirections]);
 
