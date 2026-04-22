@@ -1041,13 +1041,14 @@ export default class MainScene extends Phaser.Scene {
     const width = this.sys.canvas.width;
     const height = this.sys.canvas.height;
 
-    // Show "GOOD GAME" text
+    // Show "GOOD GAME" text — font size scales with canvas width so it fits on mobile
+    const fontSize = Math.max(28, Math.floor(width * 0.1));
     this.add.text(width / 2, height / 2, 'GOOD GAME', {
       fontFamily: 'monospace',
-      fontSize: '80px',
+      fontSize: `${fontSize}px`,
       color: '#00ffff',
       stroke: '#ff00ff',
-      strokeThickness: 10,
+      strokeThickness: Math.max(3, Math.floor(fontSize / 8)),
     }).setOrigin(0.5).setDepth(2000).setScrollFactor(0);
 
     // Fade out BGM (starts a 3s fade)
