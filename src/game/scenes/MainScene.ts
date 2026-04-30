@@ -184,6 +184,7 @@ export default class MainScene extends Phaser.Scene {
   private hitBurstEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
   private lastFireballCastTime: number = 0;
   private lastMissileCastTime: number = 0;
+  private lastProjectileAnimationTime: number = 0;
 
   // Mobile touch input state
   private touchDirections: Set<string> = new Set();
@@ -225,6 +226,7 @@ export default class MainScene extends Phaser.Scene {
     this.bossesDefeatedThisRun = 0;
     this.lastFireballCastTime = 0;
     this.lastMissileCastTime = 0;
+    this.lastProjectileAnimationTime = 0;
     this.touchDirections.clear();
     this.mouseButtons.clear();
   }
@@ -256,13 +258,17 @@ export default class MainScene extends Phaser.Scene {
   }
 
   private emitCombatBurst(x: number, y: number, quantity: number = 8) {
-    const burstCount = this.accessibility.reducedEffects
+    const burstCount = (this.accessibility.reducedEffects || this.isCombatLoadHigh())
       ? Math.max(2, Math.floor(quantity / 3))
       : quantity;
     this.hitBurstEmitter.explode(burstCount, x, y);
   }
 
   private spawnSignalPulse(x: number, y: number, radius: number, color: number, alpha: number = 0.55) {
+    if (this.isCombatLoadHigh()) {
+      return;
+    }
+
     const ring = this.add.circle(x, y, radius, color, 0.08).setDepth(2200);
     ring.setStrokeStyle(3, color, alpha);
 
@@ -273,6 +279,14 @@ export default class MainScene extends Phaser.Scene {
       duration: this.accessibility.reducedMotion ? 240 : 420,
       onComplete: () => ring.destroy(),
     });
+  }
+
+  private isCombatLoadHigh(): boolean {
+    const enemyCount = this.enemies?.countActive() ?? 0;
+    const enemyBulletCount = this.enemyBullets?.countActive() ?? 0;
+    const playerProjectileCount = (this.fireballs?.countActive() ?? 0) + (this.missiles?.countActive() ?? 0);
+
+    return enemyCount >= 22 || enemyBulletCount >= 70 || playerProjectileCount >= 28;
   }
 
   private showBossWarning(message: string, target?: Phaser.Physics.Arcade.Sprite) {
@@ -374,6 +388,12 @@ export default class MainScene extends Phaser.Scene {
   }
 
   private animateProjectiles(time: number) {
+    const underLoad = this.isCombatLoadHigh();
+    if (underLoad && time - this.lastProjectileAnimationTime < 66) {
+      return;
+    }
+    this.lastProjectileAnimationTime = time;
+
     this.fireballs.children.each((item) => {
       const fireball = item as Phaser.Physics.Arcade.Sprite;
       if (!fireball.active) {
@@ -387,7 +407,7 @@ export default class MainScene extends Phaser.Scene {
       fireball.setAngle((fireball.angle || 0) + 4);
 
       const nextTrail = (fireball.getData('nextTrail') as number | undefined) ?? 0;
-      if (!this.accessibility.reducedEffects && time > nextTrail) {
+      if (!this.accessibility.reducedEffects && !underLoad && time > nextTrail) {
         this.hitBurstEmitter.explode(1, fireball.x, fireball.y);
         fireball.setData('nextTrail', time + 60);
       }
@@ -408,7 +428,7 @@ export default class MainScene extends Phaser.Scene {
       missile.setAngle(Math.sin((time * 0.02) + missile.x * 0.01) * 6);
 
       const nextTrail = (missile.getData('nextTrail') as number | undefined) ?? 0;
-      if (!this.accessibility.reducedEffects && time > nextTrail) {
+      if (!this.accessibility.reducedEffects && !underLoad && time > nextTrail) {
         this.hitBurstEmitter.explode(2, missile.x - 8, missile.y);
         missile.setData('nextTrail', time + 75);
       }
@@ -736,11 +756,11 @@ export default class MainScene extends Phaser.Scene {
     }
 
     // Init Groups
-    this.fireballs = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: -1, runChildUpdate: true });
-    this.missiles = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: -1, runChildUpdate: true });
-    this.enemyBullets = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: -1, runChildUpdate: true });
-    this.enemies = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: -1, runChildUpdate: true });
-    this.ammoCrates = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: -1, runChildUpdate: true });
+    this.fireballs = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: 80, runChildUpdate: false });
+    this.missiles = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: 24, runChildUpdate: false });
+    this.enemyBullets = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: 140, runChildUpdate: false });
+    this.enemies = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: 48, runChildUpdate: false });
+    this.ammoCrates = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: 24, runChildUpdate: false });
 
     this.buildings = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, allowGravity: false, immovable: true });
     this.screenBuildings = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, allowGravity: false, immovable: true });
@@ -914,42 +934,55 @@ export default class MainScene extends Phaser.Scene {
 
     const container = this.add.container(width / 2, height / 2).setDepth(5000).setScrollFactor(0);
 
-    const bg = this.add.rectangle(0, 0, 820, 460, 0x000000, 0.92);
+    const panelWidth = Math.min(width * 0.72, 760);
+    const panelHeight = Math.min(height * 0.82, 520);
+    const titleY = -panelHeight * 0.34;
+    const subtitleY = -panelHeight * 0.22;
+    const difficultyRowY = -panelHeight * 0.04;
+    const difficultySpacing = Math.min(panelWidth * 0.31, 220);
+    const difficultyButtonWidth = Math.min(panelWidth * 0.25, 170);
+    const difficultyButtonHeight = 52;
+    const toggleStartY = panelHeight * 0.17;
+    const toggleSpacing = 46;
+    const toggleButtonWidth = Math.min(panelWidth * 0.64, 460);
+    const toggleButtonHeight = 34;
+
+    const bg = this.add.rectangle(0, 0, panelWidth, panelHeight, 0x000000, 0.92);
     bg.setStrokeStyle(4, 0xff00ff);
 
-    const title = this.add.text(0, -170, 'SELECT DIFFICULTY', {
+    const title = this.add.text(0, titleY, 'SELECT DIFFICULTY', {
       fontFamily: 'monospace',
-      fontSize: '40px',
+      fontSize: '32px',
       color: '#00ffff',
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    const subtitle = this.add.text(0, -128, 'Optional assists and comfort settings apply before the run starts.', {
+    const subtitle = this.add.text(0, subtitleY, 'Optional assists and comfort settings apply before the run starts.', {
       fontFamily: 'monospace',
-      fontSize: '16px',
+      fontSize: '14px',
       color: '#8de5ff',
       align: 'center',
-      wordWrap: { width: 720 }
+      wordWrap: { width: panelWidth - 80 }
     }).setOrigin(0.5);
 
-    const normalBtn = this.add.rectangle(-250, -40, 200, 60, 0x000000, 1);
+    const normalBtn = this.add.rectangle(-difficultySpacing, difficultyRowY, difficultyButtonWidth, difficultyButtonHeight, 0x000000, 1);
     normalBtn.setStrokeStyle(2, 0x00ffff);
     normalBtn.setInteractive({ useHandCursor: true });
-    const normalText = this.add.text(-250, -40, 'NORMAL', { fontFamily: 'monospace', fontSize: '24px', color: '#00ffff' }).setOrigin(0.5);
+    const normalText = this.add.text(-difficultySpacing, difficultyRowY, 'NORMAL', { fontFamily: 'monospace', fontSize: '20px', color: '#00ffff' }).setOrigin(0.5);
 
-    const hardBtn = this.add.rectangle(0, -40, 200, 60, 0x000000, 1);
+    const hardBtn = this.add.rectangle(0, difficultyRowY, difficultyButtonWidth, difficultyButtonHeight, 0x000000, 1);
     hardBtn.setStrokeStyle(2, 0xffaa00);
     hardBtn.setInteractive({ useHandCursor: true });
-    const hardText = this.add.text(0, -40, 'HARD', { fontFamily: 'monospace', fontSize: '24px', color: '#ffaa00' }).setOrigin(0.5);
+    const hardText = this.add.text(0, difficultyRowY, 'HARD', { fontFamily: 'monospace', fontSize: '20px', color: '#ffaa00' }).setOrigin(0.5);
 
-    const nightmareBtn = this.add.rectangle(250, -40, 200, 60, 0x000000, 1);
+    const nightmareBtn = this.add.rectangle(difficultySpacing, difficultyRowY, difficultyButtonWidth, difficultyButtonHeight, 0x000000, 1);
     nightmareBtn.setStrokeStyle(2, 0xff0000);
     nightmareBtn.setInteractive({ useHandCursor: true });
-    const nightmareText = this.add.text(250, -40, 'NIGHTMARE', { fontFamily: 'monospace', fontSize: '24px', color: '#ff0000' }).setOrigin(0.5);
+    const nightmareText = this.add.text(difficultySpacing, difficultyRowY, 'NIGHTMARE', { fontFamily: 'monospace', fontSize: '20px', color: '#ff0000' }).setOrigin(0.5);
 
-    const settingsTitle = this.add.text(0, 46, 'RUN SETTINGS', {
+    const settingsTitle = this.add.text(0, panelHeight * 0.11, 'RUN SETTINGS', {
       fontFamily: 'monospace',
-      fontSize: '20px',
+      fontSize: '18px',
       color: '#ff9fe0',
       fontStyle: 'bold'
     }).setOrigin(0.5);
@@ -962,14 +995,14 @@ export default class MainScene extends Phaser.Scene {
     ];
 
     const toggleButtons = toggleRows.map((row, index) => {
-      const y = 96 + (index * 52);
-      const button = this.add.rectangle(0, y, 520, 38, 0x071120, 0.95);
+      const y = toggleStartY + (index * toggleSpacing);
+      const button = this.add.rectangle(0, y, toggleButtonWidth, toggleButtonHeight, 0x071120, 0.95);
       button.setStrokeStyle(2, 0x173256);
       button.setInteractive({ useHandCursor: true });
 
       const text = this.add.text(0, y, '', {
         fontFamily: 'monospace',
-        fontSize: '18px',
+        fontSize: '16px',
         color: row.color,
       }).setOrigin(0.5);
 
@@ -2182,12 +2215,17 @@ export default class MainScene extends Phaser.Scene {
   }
 
   spawnEnemyBullet(x: number, y: number, isBoss: boolean = false, bossPhase: number = 1) {
+    const underLoad = this.isCombatLoadHigh();
+
     if (isBoss) {
-      const spreads = bossPhase >= 3
+      let spreads = bossPhase >= 3
         ? [-180, -110, -40, 40, 110, 180]
         : bossPhase === 2
           ? [-130, -30, 30, 130]
           : [-100, 0, 100];
+      if (underLoad) {
+        spreads = spreads.filter((_, index) => index % 2 === 0);
+      }
       const style = bossPhase >= 3 ? 'elite' : 'boss';
 
       spreads.forEach((velocityY) => {
@@ -2197,7 +2235,7 @@ export default class MainScene extends Phaser.Scene {
     }
 
     if (this.difficulty === 'NIGHTMARE') {
-      [-80, 0, 80].forEach((velocityY) => {
+      (underLoad ? [0] : [-80, 0, 80]).forEach((velocityY) => {
         this.fireEnemyShot(x, y, -400, velocityY, 'normal');
       });
       return;

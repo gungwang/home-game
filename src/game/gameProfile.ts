@@ -13,6 +13,7 @@ export interface ProgressUnlock {
   name: string
   description: string
   reward: string
+  bonus: Partial<ProfileBonuses>
   metric: 'lifetimeScore' | 'highestLevel' | 'bossesDefeated'
   target: number
   value: number
@@ -31,6 +32,7 @@ export interface ProgressionProfile {
 }
 
 export interface GameProfile {
+  progressionPreset: ProgressionPresetName
   settings: AccessibilitySettings
   progression: ProgressionProfile
 }
@@ -49,7 +51,21 @@ export interface ProfileBonuses {
   startingFireballLevels: number
 }
 
+interface ProgressUnlockTemplate {
+  id: ProgressUnlock['id']
+  name: string
+  description: string
+  metric: ProgressUnlock['metric']
+  target: number
+  bonus: Partial<ProfileBonuses>
+}
+
+export type ProgressionPresetName = 'casual' | 'returning-player' | 'arcade'
+
 export const GAME_PROFILE_STORAGE_KEY = 'dragon-game-profile'
+export const GAME_PROGRESS_PRESET_OVERRIDE_STORAGE_KEY = 'dragon-game-progression-preset-override'
+
+const FALLBACK_PROGRESSION_PRESET: ProgressionPresetName = 'returning-player'
 
 const DEFAULT_SETTINGS: AccessibilitySettings = {
   reducedEffects: false,
@@ -59,41 +75,147 @@ const DEFAULT_SETTINGS: AccessibilitySettings = {
   onboardingSeen: false,
 }
 
-const DEFAULT_UNLOCKS: ProgressUnlock[] = [
-  {
-    id: 'reserve-cache',
-    name: 'Reserve Cache',
-    description: 'Earn a total of 2,000 points across all runs.',
-    reward: 'Start each new run with +2 missiles.',
-    metric: 'lifetimeScore',
-    target: 2000,
+function isProgressionPresetName(value: unknown): value is ProgressionPresetName {
+  return value === 'casual' || value === 'returning-player' || value === 'arcade'
+}
+
+function readProgressionPresetOverride(): ProgressionPresetName | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  const override = window.localStorage.getItem(GAME_PROGRESS_PRESET_OVERRIDE_STORAGE_KEY)
+  return isProgressionPresetName(override) ? override : null
+}
+
+function readConfiguredProgressionPreset(): ProgressionPresetName {
+  const override = readProgressionPresetOverride()
+  if (override) {
+    return override
+  }
+
+  const envPreset = import.meta.env.VITE_PROGRESSION_PRESET
+  if (isProgressionPresetName(envPreset)) {
+    return envPreset
+  }
+
+  return FALLBACK_PROGRESSION_PRESET
+}
+
+export const ACTIVE_PROGRESSION_PRESET: ProgressionPresetName = readConfiguredProgressionPreset()
+
+function describeUnlockBonus(bonus: Partial<ProfileBonuses>): string {
+  if (bonus.startingMissiles) {
+    return `Start each new run with +${bonus.startingMissiles} missiles.`
+  }
+
+  if (bonus.startingMaxHealth) {
+    return `Start each new run with +${bonus.startingMaxHealth} max HP.`
+  }
+
+  if (bonus.startingFireballLevels) {
+    return `Start each new run at fireball level ${1 + bonus.startingFireballLevels}.`
+  }
+
+  return 'Persistent reward unlocked.'
+}
+
+function createProgressUnlock(template: ProgressUnlockTemplate): ProgressUnlock {
+  return {
+    ...template,
+    reward: describeUnlockBonus(template.bonus),
     value: 0,
     unlocked: false,
     unlockedAt: null,
-  },
-  {
-    id: 'drake-armor',
-    name: 'Drake Armor',
-    description: 'Reach level 5 in any run.',
-    reward: 'Start each new run with +15 max HP.',
-    metric: 'highestLevel',
-    target: 5,
-    value: 0,
-    unlocked: false,
-    unlockedAt: null,
-  },
-  {
-    id: 'aether-core',
-    name: 'Aether Core',
-    description: 'Defeat your first boss.',
-    reward: 'Start each new run at fireball level 2.',
-    metric: 'bossesDefeated',
-    target: 1,
-    value: 0,
-    unlocked: false,
-    unlockedAt: null,
-  },
-]
+  }
+}
+
+const PROGRESSION_PRESET_TEMPLATES: Record<ProgressionPresetName, ProgressUnlockTemplate[]> = {
+  casual: [
+    {
+      id: 'reserve-cache',
+      name: 'Reserve Cache',
+      description: 'Earn a total of 600 points across all runs.',
+      metric: 'lifetimeScore',
+      target: 600,
+      bonus: { startingMissiles: 3 },
+    },
+    {
+      id: 'drake-armor',
+      name: 'Drake Armor',
+      description: 'Reach level 3 in any run.',
+      metric: 'highestLevel',
+      target: 3,
+      bonus: { startingMaxHealth: 25 },
+    },
+    {
+      id: 'aether-core',
+      name: 'Aether Core',
+      description: 'Defeat your first boss.',
+      metric: 'bossesDefeated',
+      target: 1,
+      bonus: { startingFireballLevels: 1 },
+    },
+  ],
+  'returning-player': [
+    {
+      id: 'reserve-cache',
+      name: 'Reserve Cache',
+      description: 'Earn a total of 900 points across all runs.',
+      metric: 'lifetimeScore',
+      target: 900,
+      bonus: { startingMissiles: 2 },
+    },
+    {
+      id: 'drake-armor',
+      name: 'Drake Armor',
+      description: 'Reach level 4 in any run.',
+      metric: 'highestLevel',
+      target: 4,
+      bonus: { startingMaxHealth: 20 },
+    },
+    {
+      id: 'aether-core',
+      name: 'Aether Core',
+      description: 'Defeat 2 bosses across all runs.',
+      metric: 'bossesDefeated',
+      target: 2,
+      bonus: { startingFireballLevels: 1 },
+    },
+  ],
+  arcade: [
+    {
+      id: 'reserve-cache',
+      name: 'Reserve Cache',
+      description: 'Earn a total of 1500 points across all runs.',
+      metric: 'lifetimeScore',
+      target: 1500,
+      bonus: { startingMissiles: 1 },
+    },
+    {
+      id: 'drake-armor',
+      name: 'Drake Armor',
+      description: 'Reach level 6 in any run.',
+      metric: 'highestLevel',
+      target: 6,
+      bonus: { startingMaxHealth: 15 },
+    },
+    {
+      id: 'aether-core',
+      name: 'Aether Core',
+      description: 'Defeat 3 bosses across all runs.',
+      metric: 'bossesDefeated',
+      target: 3,
+      bonus: { startingFireballLevels: 1 },
+    },
+  ],
+}
+
+function getPresetUnlocks(preset: ProgressionPresetName = ACTIVE_PROGRESSION_PRESET): ProgressUnlock[] {
+  return PROGRESSION_PRESET_TEMPLATES[preset].map((template) => createProgressUnlock(template))
+}
+
+const DEFAULT_UNLOCKS: ProgressUnlock[] = getPresetUnlocks()
 
 const DEFAULT_PROGRESSION: ProgressionProfile = {
   totalRuns: 0,
@@ -107,6 +229,7 @@ const DEFAULT_PROGRESSION: ProgressionProfile = {
 
 export function getDefaultGameProfile(): GameProfile {
   return {
+    progressionPreset: ACTIVE_PROGRESSION_PRESET,
     settings: { ...DEFAULT_SETTINGS },
     progression: {
       ...DEFAULT_PROGRESSION,
@@ -123,7 +246,11 @@ function getStorage(): Storage | null {
   return window.localStorage
 }
 
-function mergeUnlocks(unlocks: ProgressUnlock[] | undefined, progression: ProgressionProfile): ProgressUnlock[] {
+function mergeUnlocks(
+  unlocks: ProgressUnlock[] | undefined,
+  progression: ProgressionProfile,
+  preserveStoredUnlockedState: boolean,
+): ProgressUnlock[] {
   const unlockMap = new Map((unlocks ?? []).map((unlock) => [unlock.id, unlock]))
 
   return DEFAULT_UNLOCKS.map((defaultUnlock) => {
@@ -139,7 +266,7 @@ function mergeUnlocks(unlocks: ProgressUnlock[] | undefined, progression: Progre
       }
     }
 
-    const unlocked = storedUnlock.unlocked || metricValue >= defaultUnlock.target
+    const unlocked = (preserveStoredUnlockedState && storedUnlock.unlocked) || metricValue >= defaultUnlock.target
 
     return {
       ...defaultUnlock,
@@ -160,6 +287,9 @@ export function sanitizeGameProfile(input: unknown): GameProfile {
   const candidate = input as Partial<GameProfile>
   const settings = (candidate.settings ?? {}) as Partial<AccessibilitySettings>
   const progressionCandidate = (candidate.progression ?? {}) as Partial<ProgressionProfile>
+  const storedPreset = isProgressionPresetName(candidate.progressionPreset)
+    ? candidate.progressionPreset
+    : ACTIVE_PROGRESSION_PRESET
 
   const progression: ProgressionProfile = {
     totalRuns: Number(progressionCandidate.totalRuns ?? defaults.progression.totalRuns) || defaults.progression.totalRuns,
@@ -177,9 +307,14 @@ export function sanitizeGameProfile(input: unknown): GameProfile {
   progression.bossesDefeated = Math.max(0, progression.bossesDefeated)
   progression.videosWatched = Math.max(0, progression.videosWatched)
   progression.lastRunScore = Math.max(0, progression.lastRunScore)
-  progression.unlocks = mergeUnlocks(progressionCandidate.unlocks, progression)
+  progression.unlocks = mergeUnlocks(
+    progressionCandidate.unlocks,
+    progression,
+    storedPreset === ACTIVE_PROGRESSION_PRESET,
+  )
 
   return {
+    progressionPreset: ACTIVE_PROGRESSION_PRESET,
     settings: {
       reducedEffects: Boolean(settings.reducedEffects ?? defaults.settings.reducedEffects),
       reducedMotion: Boolean(settings.reducedMotion ?? defaults.settings.reducedMotion),
@@ -252,15 +387,20 @@ export function applyRunSummaryToProfile(profile: GameProfile, summary: RunSumma
 }
 
 export function getProfileBonuses(profile: GameProfile): ProfileBonuses {
-  const unlockedIds = new Set(
-    profile.progression.unlocks.filter((unlock) => unlock.unlocked).map((unlock) => unlock.id),
-  )
+  return profile.progression.unlocks.reduce<ProfileBonuses>((bonuses, unlock) => {
+    if (!unlock.unlocked) {
+      return bonuses
+    }
 
-  return {
-    startingMissiles: unlockedIds.has('reserve-cache') ? 2 : 0,
-    startingMaxHealth: unlockedIds.has('drake-armor') ? 15 : 0,
-    startingFireballLevels: unlockedIds.has('aether-core') ? 1 : 0,
-  }
+    bonuses.startingMissiles += unlock.bonus.startingMissiles ?? 0
+    bonuses.startingMaxHealth += unlock.bonus.startingMaxHealth ?? 0
+    bonuses.startingFireballLevels += unlock.bonus.startingFireballLevels ?? 0
+    return bonuses
+  }, {
+    startingMissiles: 0,
+    startingMaxHealth: 0,
+    startingFireballLevels: 0,
+  })
 }
 
 export function getNextUnlock(profile: GameProfile): ProgressUnlock | null {
