@@ -1,3 +1,5 @@
+import { getNextUnlock, type GameProfile } from '../game/gameProfile'
+
 interface HighScore {
   score: number;
   date: string;
@@ -7,9 +9,13 @@ interface ResumeScreenProps {
   score: number;
   onRestart: () => void;
   highScores: HighScore[];
+  profile: GameProfile;
 }
 
-export default function ResumeScreen({ score, onRestart, highScores }: ResumeScreenProps) {
+export default function ResumeScreen({ score, onRestart, highScores, profile }: ResumeScreenProps) {
+  const nextUnlock = getNextUnlock(profile)
+  const unlockedCount = profile.progression.unlocks.filter((unlock) => unlock.unlocked).length
+
   return (
     <div className="absolute inset-0 bg-black flex items-center justify-center text-white font-mono">
       <div className="w-[95vw] h-[95vh] flex flex-col">
@@ -96,6 +102,46 @@ export default function ResumeScreen({ score, onRestart, highScores }: ResumeScr
               ) : (
                 <p className="text-gray-500 italic text-center py-4 sm:py-8 text-xs sm:text-base">No records found. Be the first!</p>
               )}
+            </div>
+
+            <div className="mt-4 border-t border-yellow-900/60 pt-4 text-xs sm:text-sm md:text-base">
+              <h4 className="mb-2 text-pink-400 uppercase tracking-[0.2em]">Flight Progress</h4>
+              <div className="space-y-1 text-gray-200">
+                <div>Runs: {profile.progression.totalRuns}</div>
+                <div>Lifetime Score: {profile.progression.lifetimeScore.toLocaleString()}</div>
+                <div>Bosses Defeated: {profile.progression.bossesDefeated}</div>
+                <div>Best Level: {profile.progression.highestLevel}</div>
+                <div>Unlocks: {unlockedCount}/{profile.progression.unlocks.length}</div>
+              </div>
+
+              {nextUnlock ? (
+                <div className="mt-3 rounded border border-cyan-900/60 bg-cyan-950/20 p-2 text-cyan-100">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-cyan-300 sm:text-xs">Next Unlock</div>
+                  <div className="mt-1 font-bold">{nextUnlock.name}</div>
+                  <div className="text-[10px] text-cyan-100/80 sm:text-xs">{nextUnlock.description}</div>
+                  <div className="mt-1 text-[10px] text-cyan-200 sm:text-xs">{nextUnlock.value.toLocaleString()} / {nextUnlock.target.toLocaleString()}</div>
+                </div>
+              ) : (
+                <div className="mt-3 rounded border border-emerald-900/60 bg-emerald-950/20 p-2 text-emerald-200">
+                  All persistent rewards unlocked.
+                </div>
+              )}
+
+              <div className="mt-3 space-y-2">
+                {profile.progression.unlocks.map((unlock) => (
+                  <div key={unlock.id} className="rounded border border-white/10 bg-black/30 p-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="font-bold text-white">{unlock.name}</div>
+                        <div className="text-[10px] text-gray-400 sm:text-xs">{unlock.reward}</div>
+                      </div>
+                      <div className={unlock.unlocked ? 'text-emerald-300' : 'text-gray-500'}>
+                        {unlock.unlocked ? 'UNLOCKED' : `${unlock.value.toLocaleString()} / ${unlock.target.toLocaleString()}`}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
