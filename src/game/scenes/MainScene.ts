@@ -1,6 +1,16 @@
 import Phaser from 'phaser';
 import { GameEvents } from '../GameEvents';
 import { YOUTUBE_VIDEOS } from '../youtubeVideos';
+import {
+  applyRunSummaryToProfile,
+  getDefaultGameProfile,
+  getProfileBonuses,
+  loadGameProfile,
+  type AccessibilitySettings,
+  type Difficulty,
+  type GameProfile,
+  updateProfileSettings,
+} from '../gameProfile';
 
 type EnvState = 'DAY' | 'SUNSET' | 'NIGHT' | 'SUNRISE';
 
@@ -117,7 +127,7 @@ export default class MainScene extends Phaser.Scene {
 
   private distanceTraveled: number = 0;
   private checkpointThreshold: number = 5000;
-  private difficulty: 'NORMAL' | 'NIGHTMARE' | 'HARD' = 'NORMAL';
+  private difficulty: Difficulty = 'NORMAL';
 
   private getMaxLevel(): number {
     return this.difficulty === 'HARD' ? 15 : 20;
@@ -166,6 +176,15 @@ export default class MainScene extends Phaser.Scene {
   private lastDamageTime: number = 0;
   private readonly DAMAGE_COOLDOWN: number = 500; // ms invincibility after taking damage
   private prevEnvState: EnvState = 'DAY';
+  private profile: GameProfile = getDefaultGameProfile();
+  private accessibility: AccessibilitySettings = this.profile.settings;
+  private runProgressSaved: boolean = false;
+  private bossesDefeatedThisRun: number = 0;
+  private damageFlashOverlay!: Phaser.GameObjects.Rectangle;
+  private hitBurstEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private lastFireballCastTime: number = 0;
+  private lastMissileCastTime: number = 0;
+  private lastProjectileAnimationTime: number = 0;
 
   // Mobile touch input state
   private touchDirections: Set<string> = new Set();
@@ -175,6 +194,368 @@ export default class MainScene extends Phaser.Scene {
 
   constructor() {
     super({ key: 'MainScene' });
+  }
+
+  private resetRunState() {
+    const bonuses = getProfileBonuses(this.profile);
+
+    this.currentLevel = 1;
+    this.missileAmmo = 3 + bonuses.startingMissiles;
+    this.score = 0;
+    this.maxHealth = 100 + bonuses.startingMaxHealth;
+    this.health = this.maxHealth;
+    this.fireballLevel = Math.min(7, 1 + bonuses.startingFireballLevels);
+    this.missileLevel = 1;
+    this.shieldCount = 0;
+    this.isShieldActive = false;
+    this.videosWatched = 0;
+    this.distanceTraveled = 0;
+    this.isPaused = false;
+    this.bgmStarted = false;
+    this.enemyCounter = 0;
+    this.isBossLevel = false;
+    this.isGracePeriod = false;
+    this.envCycleTimer = 0;
+    this.currentEnvState = 'DAY';
+    this.prevEnvState = 'DAY';
+    this.lastLightningTime = 0;
+    this.lastDamageTime = 0;
+    this.lastEnemySpawn = 0;
+    this.lastBuildingSpawn = 0;
+    this.runProgressSaved = false;
+    this.bossesDefeatedThisRun = 0;
+    this.lastFireballCastTime = 0;
+    this.lastMissileCastTime = 0;
+    this.lastProjectileAnimationTime = 0;
+    this.touchDirections.clear();
+    this.mouseButtons.clear();
+  }
+
+  private emitHudState() {
+    GameEvents.emit('profile-changed', this.profile);
+    GameEvents.emit('score-changed', this.score);
+    GameEvents.emit('ammo-changed', this.missileAmmo);
+    GameEvents.emit('health-changed', this.health);
+    GameEvents.emit('shields-changed', this.shieldCount);
+    GameEvents.emit('level-changed', this.currentLevel);
+    GameEvents.emit('difficulty-changed', this.difficulty);
+    GameEvents.emit('weapon-state-changed', {
+      fireballLevel: this.fireballLevel,
+      missileLevel: this.missileLevel,
+    });
+  }
+
+  private setAccessibilitySetting<K extends keyof AccessibilitySettings>(
+    key: K,
+    value: AccessibilitySettings[K],
+  ) {
+    this.profile = updateProfileSettings(
+      this.profile,
+      { [key]: value } as Pick<AccessibilitySettings, K>,
+    );
+    this.accessibility = this.profile.settings;
+    GameEvents.emit('profile-changed', this.profile);
+  }
+
+  private emitCombatBurst(x: number, y: number, quantity: number = 8) {
+    const burstCount = (this.accessibility.reducedEffects || this.isCombatLoadHigh())
+      ? Math.max(2, Math.floor(quantity / 3))
+      : quantity;
+    this.hitBurstEmitter.explode(burstCount, x, y);
+  }
+
+  private spawnSignalPulse(x: number, y: number, radius: number, color: number, alpha: number = 0.55) {
+    if (this.isCombatLoadHigh()) {
+      return;
+    }
+
+    const ring = this.add.circle(x, y, radius, color, 0.08).setDepth(2200);
+    ring.setStrokeStyle(3, color, alpha);
+
+    this.tweens.add({
+      targets: ring,
+      alpha: 0,
+      scale: this.accessibility.reducedMotion ? 1.15 : 1.4,
+      duration: this.accessibility.reducedMotion ? 240 : 420,
+      onComplete: () => ring.destroy(),
+    });
+  }
+
+  private isCombatLoadHigh(): boolean {
+    const enemyCount = this.enemies?.countActive() ?? 0;
+    const enemyBulletCount = this.enemyBullets?.countActive() ?? 0;
+    const playerProjectileCount = (this.fireballs?.countActive() ?? 0) + (this.missiles?.countActive() ?? 0);
+
+    return enemyCount >= 22 || enemyBulletCount >= 70 || playerProjectileCount >= 28;
+  }
+
+  private showBossWarning(message: string, target?: Phaser.Physics.Arcade.Sprite) {
+    const width = this.sys.canvas.width;
+    const banner = this.add.text(width / 2, 96, message, {
+      fontFamily: 'monospace',
+      fontSize: '28px',
+      color: '#ffd166',
+      stroke: '#1a0f00',
+      strokeThickness: 6,
+      fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(4600).setScrollFactor(0);
+
+    GameEvents.emit('boss-warning', message);
+    this.time.delayedCall(this.accessibility.reducedMotion ? 700 : 1200, () => {
+      GameEvents.emit('boss-warning', '');
+    });
+
+    if (target) {
+      this.spawnSignalPulse(target.x, target.y, Math.max(32, target.displayWidth * 0.42), 0xff8c42, 0.75);
+    }
+
+    this.tweens.add({
+      targets: banner,
+      alpha: 0,
+      y: banner.y - (this.accessibility.reducedMotion ? 10 : 18),
+      delay: this.accessibility.reducedMotion ? 420 : 650,
+      duration: this.accessibility.reducedMotion ? 180 : 340,
+      onComplete: () => banner.destroy(),
+    });
+  }
+
+  private finalizeRunProgression() {
+    if (this.runProgressSaved) {
+      return;
+    }
+
+    this.runProgressSaved = true;
+    this.profile = applyRunSummaryToProfile(this.profile, {
+      score: this.score,
+      levelReached: this.currentLevel,
+      bossesDefeated: this.bossesDefeatedThisRun,
+      videosWatched: this.videosWatched,
+      difficulty: this.difficulty,
+    });
+    this.accessibility = this.profile.settings;
+    GameEvents.emit('profile-changed', this.profile);
+  }
+
+  private animateDragon(time: number) {
+    if (!this.dragon.active) {
+      return;
+    }
+
+    const baseWidth = (this.dragon.getData('baseDisplayWidth') as number | undefined) ?? 100;
+    const baseHeight = (this.dragon.getData('baseDisplayHeight') as number | undefined) ?? 40;
+    const body = this.dragon.body as Phaser.Physics.Arcade.Body | undefined;
+    const velocityX = body?.velocity.x ?? 0;
+    const velocityY = body?.velocity.y ?? 0;
+    const moving = Math.abs(velocityX) + Math.abs(velocityY) > 10;
+    const recentAttack = time - Math.max(this.lastFireballCastTime, this.lastMissileCastTime) < 140;
+    const flapStrength = this.accessibility.reducedMotion ? 0.04 : 0.08;
+    const flap = moving
+      ? Math.sin(time * 0.02) * flapStrength
+      : Math.sin(time * 0.008) * 0.03;
+    const attackBoost = recentAttack ? 0.1 : 0;
+
+    this.dragon.setDisplaySize(baseWidth * (1 + attackBoost), baseHeight * (1 + flap));
+    this.dragon.setAngle(Phaser.Math.Clamp((velocityY * 0.05) + (moving ? Math.sin(time * 0.01) * 3 : 0), -18, 18));
+  }
+
+  private animateActor(actor: Phaser.Physics.Arcade.Sprite, time: number) {
+    const baseWidth = (actor.getData('baseDisplayWidth') as number | undefined) ?? actor.displayWidth;
+    const baseHeight = (actor.getData('baseDisplayHeight') as number | undefined) ?? actor.displayHeight;
+    const isBoss = Boolean(actor.getData('isBoss'));
+    const bossPhase = (actor.getData('bossPhase') as number | undefined) ?? 1;
+    const enemyRole = actor.getData('enemyRole') as string | undefined;
+    const pulse = Math.sin((time * (isBoss ? 0.011 : 0.015)) + actor.y * 0.015);
+    const widthDelta = isBoss ? 0.06 : enemyRole === 'fastFlyer' ? 0.04 : 0.02;
+    const heightDelta = isBoss ? 0.04 : enemyRole === 'fastFlyer' ? 0.05 : 0.02;
+
+    actor.setDisplaySize(baseWidth * (1 + pulse * widthDelta), baseHeight * (1 - pulse * heightDelta));
+
+    if (isBoss) {
+      actor.setAngle(pulse * (6 + bossPhase * 2));
+      actor.setAlpha(0.92 + Math.abs(pulse) * 0.08);
+      return;
+    }
+
+    if (enemyRole === 'fastFlyer') {
+      actor.setAngle(pulse * 12);
+    } else if (enemyRole === 'swarm') {
+      actor.setAngle(pulse * 8);
+    } else {
+      actor.setAngle(pulse * 4);
+    }
+
+    actor.setAlpha(0.78 + Math.abs(pulse) * 0.08);
+  }
+
+  private animateProjectiles(time: number) {
+    const underLoad = this.isCombatLoadHigh();
+    if (underLoad && time - this.lastProjectileAnimationTime < 66) {
+      return;
+    }
+    this.lastProjectileAnimationTime = time;
+
+    this.fireballs.children.each((item) => {
+      const fireball = item as Phaser.Physics.Arcade.Sprite;
+      if (!fireball.active) {
+        return true;
+      }
+
+      const baseWidth = (fireball.getData('baseDisplayWidth') as number | undefined) ?? fireball.displayWidth;
+      const baseHeight = (fireball.getData('baseDisplayHeight') as number | undefined) ?? fireball.displayHeight;
+      const pulse = 1 + Math.sin((time * 0.03) + fireball.x * 0.02) * (this.accessibility.reducedMotion ? 0.04 : 0.1);
+      fireball.setDisplaySize(baseWidth * pulse, baseHeight * pulse);
+      fireball.setAngle((fireball.angle || 0) + 4);
+
+      const nextTrail = (fireball.getData('nextTrail') as number | undefined) ?? 0;
+      if (!this.accessibility.reducedEffects && !underLoad && time > nextTrail) {
+        this.hitBurstEmitter.explode(1, fireball.x, fireball.y);
+        fireball.setData('nextTrail', time + 60);
+      }
+
+      return true;
+    });
+
+    this.missiles.children.each((item) => {
+      const missile = item as Phaser.Physics.Arcade.Sprite;
+      if (!missile.active) {
+        return true;
+      }
+
+      const baseWidth = (missile.getData('baseDisplayWidth') as number | undefined) ?? missile.displayWidth;
+      const baseHeight = (missile.getData('baseDisplayHeight') as number | undefined) ?? missile.displayHeight;
+      const wobble = Math.sin((time * 0.025) + missile.y * 0.03) * (this.accessibility.reducedMotion ? 0.02 : 0.06);
+      missile.setDisplaySize(baseWidth * (1 + wobble), baseHeight * (1 - wobble * 0.5));
+      missile.setAngle(Math.sin((time * 0.02) + missile.x * 0.01) * 6);
+
+      const nextTrail = (missile.getData('nextTrail') as number | undefined) ?? 0;
+      if (!this.accessibility.reducedEffects && !underLoad && time > nextTrail) {
+        this.hitBurstEmitter.explode(2, missile.x - 8, missile.y);
+        missile.setData('nextTrail', time + 75);
+      }
+
+      return true;
+    });
+
+    this.enemyBullets.children.each((item) => {
+      const bullet = item as Phaser.Physics.Arcade.Sprite;
+      if (!bullet.active) {
+        return true;
+      }
+
+      const baseWidth = (bullet.getData('baseDisplayWidth') as number | undefined) ?? bullet.displayWidth;
+      const baseHeight = (bullet.getData('baseDisplayHeight') as number | undefined) ?? bullet.displayHeight;
+      const isBossProjectile = Boolean(bullet.getData('bossProjectile'));
+      const pulse = isBossProjectile
+        ? 1 + Math.sin((time * 0.03) + bullet.y * 0.04) * (this.accessibility.reducedMotion ? 0.04 : 0.12)
+        : 1;
+
+      bullet.setDisplaySize(baseWidth * pulse, baseHeight * pulse);
+      bullet.setAlpha(isBossProjectile ? 0.86 + Math.abs(Math.sin(time * 0.02)) * 0.14 : 1);
+
+      return true;
+    });
+  }
+
+  private updateBossPhase(boss: Phaser.Physics.Arcade.Sprite): number {
+    const maxHealth = (boss.getData('maxHealth') as number | undefined) ?? 1;
+    const health = (boss.getData('health') as number | undefined) ?? maxHealth;
+    const healthRatio = health / maxHealth;
+    const currentPhase = (boss.getData('bossPhase') as number | undefined) ?? 1;
+    const nextPhase = healthRatio <= 0.34 ? 3 : healthRatio <= 0.67 ? 2 : 1;
+
+    if (nextPhase !== currentPhase) {
+      boss.setData('bossPhase', nextPhase);
+      boss.setData('nextSpecialAttack', this.time.now + 900);
+      this.showBossWarning(nextPhase === 2 ? 'PHASE 2: CROSSFIRE' : 'PHASE 3: METEOR SWEEP', boss);
+
+      if (!this.accessibility.reducedMotion) {
+        this.cameras.main.shake(nextPhase === 2 ? 120 : 180, nextPhase === 2 ? 0.003 : 0.005);
+      }
+    }
+
+    return nextPhase;
+  }
+
+  private telegraphBossAttack(boss: Phaser.Physics.Arcade.Sprite, time: number, phase: number) {
+    const telegraphDuration = this.accessibility.reducedMotion ? 450 : 700;
+    boss.setData('telegraphUntil', time + telegraphDuration);
+    boss.setData('nextShot', time + telegraphDuration);
+    boss.setVelocityX(-20);
+
+    const attackLabel = phase === 1
+      ? 'TELEGRAPH: ARC BURST'
+      : phase === 2
+        ? 'TELEGRAPH: CROSSFIRE'
+        : 'TELEGRAPH: METEOR SWEEP';
+    this.showBossWarning(attackLabel, boss);
+  }
+
+  private executeBossSpecialAttack(boss: Phaser.Physics.Arcade.Sprite, phase: number) {
+    boss.setData('telegraphUntil', 0);
+    const originX = boss.x - (boss.displayWidth * 0.15);
+    const originY = boss.y;
+
+    if (phase === 1) {
+      [-180, -90, 0, 90, 180].forEach((velocityY) => {
+        this.fireEnemyShot(originX, originY, -430, velocityY, 'boss');
+      });
+    } else if (phase === 2) {
+      [-240, -160, -80, 0, 80, 160, 240].forEach((velocityY) => {
+        this.fireEnemyShot(originX, originY, -470, velocityY, 'boss');
+      });
+
+      if (!this.accessibility.reducedMotion) {
+        boss.setVelocityX(-180);
+        this.time.delayedCall(260, () => {
+          if (boss.active) {
+            boss.setVelocityX(-60);
+          }
+        });
+      }
+    } else {
+      [-260, -180, -100, 0, 100, 180, 260].forEach((velocityY) => {
+        this.fireEnemyShot(originX, originY, -520, velocityY, 'elite');
+      });
+
+      this.time.delayedCall(220, () => {
+        if (!boss.active || this.isPaused) {
+          return;
+        }
+
+        [-210, -130, -50, 50, 130, 210].forEach((velocityY) => {
+          this.fireEnemyShot(boss.x - 20, boss.y, -540, velocityY, 'elite');
+        });
+      });
+    }
+
+    boss.setData('nextSpecialAttack', this.time.now + (phase === 3 ? 2500 : phase === 2 ? 3200 : 3800));
+  }
+
+  private fireEnemyShot(
+    x: number,
+    y: number,
+    velocityX: number,
+    velocityY: number,
+    style: 'normal' | 'boss' | 'elite' = 'normal',
+  ) {
+    const bullet = this.enemyBullets.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
+    if (!bullet) {
+      return;
+    }
+
+    const size = style === 'elite' ? 16 : style === 'boss' ? 13 : 10;
+    bullet.enableBody(true, x, y, true, true);
+    bullet.setTexture('enemyBullet');
+    if (!bullet.body) this.physics.add.existing(bullet);
+    bullet.setDisplaySize(size, size);
+    bullet.body?.setSize(size, size);
+    bullet.setVelocity(velocityX, velocityY);
+    bullet.setTint(style === 'elite' ? 0xff4d7a : style === 'boss' ? 0xffd166 : 0xffeb3b);
+    bullet.setAlpha(style === 'normal' ? 0.95 : 1);
+    bullet.setData('bossProjectile', style !== 'normal');
+    bullet.setData('baseDisplayWidth', size);
+    bullet.setData('baseDisplayHeight', size);
+    bullet.setData('nextTrail', this.time.now);
   }
 
   preload() {
@@ -226,6 +607,10 @@ export default class MainScene extends Phaser.Scene {
 
     const width = this.sys.canvas.width;
     const height = this.sys.canvas.height;
+
+    this.profile = loadGameProfile();
+    this.accessibility = this.profile.settings;
+    this.resetRunState();
 
     // Background Layer: Deep Space/Sky
     const skyG = this.add.graphics();
@@ -302,6 +687,10 @@ export default class MainScene extends Phaser.Scene {
     this.lightningOverlay = this.add.rectangle(width/2, height/2, width, height, 0xffffff, 0)
       .setDepth(5000).setScrollFactor(0);
 
+    this.damageFlashOverlay = this.add.rectangle(width / 2, height / 2, width, height, 0xff3355, 0)
+      .setDepth(4700)
+      .setScrollFactor(0);
+
     // Sync weather to environment state on each transition
     this.applyWeatherForState();
 
@@ -323,6 +712,17 @@ export default class MainScene extends Phaser.Scene {
     });
     this.explosionEmitter.setDepth(2000);
 
+    this.hitBurstEmitter = this.add.particles(0, 0, 'spark', {
+      lifespan: { min: 120, max: 240 },
+      speed: { min: 40, max: 180 },
+      scale: { start: 0.85, end: 0 },
+      alpha: { start: 0.8, end: 0 },
+      tint: [0xffffff, 0xffb347, 0x4fd8ff],
+      blendMode: 'ADD',
+      emitting: false
+    });
+    this.hitBurstEmitter.setDepth(2100);
+
     // Bullet Textures (Remaining placeholders)
     const enemyBulletGraphics = this.add.graphics();
     enemyBulletGraphics.fillStyle(0xffeb3b, 1);
@@ -343,6 +743,8 @@ export default class MainScene extends Phaser.Scene {
     this.dragon.setCollideWorldBounds(true);
     this.dragon.setDisplaySize(100, 40);
     this.dragon.body?.setSize(60, 30); // Tighter collision box for the dragon body
+    this.dragon.setData('baseDisplayWidth', 100);
+    this.dragon.setData('baseDisplayHeight', 40);
 
     if (this.input.keyboard) {
       this.cursors = this.input.keyboard.createCursorKeys();
@@ -354,11 +756,11 @@ export default class MainScene extends Phaser.Scene {
     }
 
     // Init Groups
-    this.fireballs = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: -1, runChildUpdate: true });
-    this.missiles = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: -1, runChildUpdate: true });
-    this.enemyBullets = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: -1, runChildUpdate: true });
-    this.enemies = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: -1, runChildUpdate: true });
-    this.ammoCrates = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: -1, runChildUpdate: true });
+    this.fireballs = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: 80, runChildUpdate: false });
+    this.missiles = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: 24, runChildUpdate: false });
+    this.enemyBullets = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: 140, runChildUpdate: false });
+    this.enemies = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: 48, runChildUpdate: false });
+    this.ammoCrates = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: 24, runChildUpdate: false });
 
     this.buildings = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, allowGravity: false, immovable: true });
     this.screenBuildings = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, allowGravity: false, immovable: true });
@@ -409,6 +811,7 @@ export default class MainScene extends Phaser.Scene {
       }
 
       this.currentLevel++;
+  GameEvents.emit('level-changed', this.currentLevel);
       this.updateBackdropForLevel();
       this.showLevelTitle();
 
@@ -423,20 +826,9 @@ export default class MainScene extends Phaser.Scene {
     };
     GameEvents.on('video-complete', onVideoComplete);
     const onRestartGame = () => {
-      this.score = 0;
-      this.health = 100;
-      this.maxHealth = 100;
-      this.fireballLevel = 1;
-      this.missileLevel = 1;
-      this.missileAmmo = 3;
-      this.shieldCount = 0;
-      this.isShieldActive = false;
-      this.currentLevel = 1;
-      this.videosWatched = 0;
-      this.distanceTraveled = 0;
-      this.isPaused = false;
-      this.bgmStarted = false;
-      this.isBossLevel = false;
+      this.profile = loadGameProfile();
+      this.accessibility = this.profile.settings;
+      this.resetRunState();
       this.scene.restart();
     };
     GameEvents.on('restart-game', onRestartGame);
@@ -502,8 +894,7 @@ export default class MainScene extends Phaser.Scene {
 
     this.input.mouse?.disableContextMenu();
 
-    GameEvents.emit('ammo-changed', this.missileAmmo);
-    GameEvents.emit('health-changed', this.health);
+    this.emitHudState();
 
     // Mobile touch control listeners
     this.touchDirectionHandler = (dirs: string[]) => {
@@ -543,39 +934,110 @@ export default class MainScene extends Phaser.Scene {
 
     const container = this.add.container(width / 2, height / 2).setDepth(5000).setScrollFactor(0);
 
-    const bg = this.add.rectangle(0, 0, 800, 300, 0x000000, 0.9);
+    const panelWidth = Math.min(width * 0.72, 760);
+    const panelHeight = Math.min(height * 0.82, 520);
+    const titleY = -panelHeight * 0.34;
+    const subtitleY = -panelHeight * 0.22;
+    const difficultyRowY = -panelHeight * 0.04;
+    const difficultySpacing = Math.min(panelWidth * 0.31, 220);
+    const difficultyButtonWidth = Math.min(panelWidth * 0.25, 170);
+    const difficultyButtonHeight = 52;
+    const toggleStartY = panelHeight * 0.17;
+    const toggleSpacing = 46;
+    const toggleButtonWidth = Math.min(panelWidth * 0.64, 460);
+    const toggleButtonHeight = 34;
+
+    const bg = this.add.rectangle(0, 0, panelWidth, panelHeight, 0x000000, 0.92);
     bg.setStrokeStyle(4, 0xff00ff);
 
-    const title = this.add.text(0, -80, 'SELECT DIFFICULTY', {
+    const title = this.add.text(0, titleY, 'SELECT DIFFICULTY', {
       fontFamily: 'monospace',
-      fontSize: '40px',
+      fontSize: '32px',
       color: '#00ffff',
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    const normalBtn = this.add.rectangle(-250, 40, 200, 60, 0x000000, 1);
+    const subtitle = this.add.text(0, subtitleY, 'Optional assists and comfort settings apply before the run starts.', {
+      fontFamily: 'monospace',
+      fontSize: '14px',
+      color: '#8de5ff',
+      align: 'center',
+      wordWrap: { width: panelWidth - 80 }
+    }).setOrigin(0.5);
+
+    const normalBtn = this.add.rectangle(-difficultySpacing, difficultyRowY, difficultyButtonWidth, difficultyButtonHeight, 0x000000, 1);
     normalBtn.setStrokeStyle(2, 0x00ffff);
     normalBtn.setInteractive({ useHandCursor: true });
-    const normalText = this.add.text(-250, 40, 'NORMAL', { fontFamily: 'monospace', fontSize: '24px', color: '#00ffff' }).setOrigin(0.5);
+    const normalText = this.add.text(-difficultySpacing, difficultyRowY, 'NORMAL', { fontFamily: 'monospace', fontSize: '20px', color: '#00ffff' }).setOrigin(0.5);
 
-    const hardBtn = this.add.rectangle(0, 40, 200, 60, 0x000000, 1);
+    const hardBtn = this.add.rectangle(0, difficultyRowY, difficultyButtonWidth, difficultyButtonHeight, 0x000000, 1);
     hardBtn.setStrokeStyle(2, 0xffaa00);
     hardBtn.setInteractive({ useHandCursor: true });
-    const hardText = this.add.text(0, 40, 'HARD', { fontFamily: 'monospace', fontSize: '24px', color: '#ffaa00' }).setOrigin(0.5);
+    const hardText = this.add.text(0, difficultyRowY, 'HARD', { fontFamily: 'monospace', fontSize: '20px', color: '#ffaa00' }).setOrigin(0.5);
 
-    const nightmareBtn = this.add.rectangle(250, 40, 200, 60, 0x000000, 1);
+    const nightmareBtn = this.add.rectangle(difficultySpacing, difficultyRowY, difficultyButtonWidth, difficultyButtonHeight, 0x000000, 1);
     nightmareBtn.setStrokeStyle(2, 0xff0000);
     nightmareBtn.setInteractive({ useHandCursor: true });
-    const nightmareText = this.add.text(250, 40, 'NIGHTMARE', { fontFamily: 'monospace', fontSize: '24px', color: '#ff0000' }).setOrigin(0.5);
+    const nightmareText = this.add.text(difficultySpacing, difficultyRowY, 'NIGHTMARE', { fontFamily: 'monospace', fontSize: '20px', color: '#ff0000' }).setOrigin(0.5);
+
+    const settingsTitle = this.add.text(0, panelHeight * 0.11, 'RUN SETTINGS', {
+      fontFamily: 'monospace',
+      fontSize: '18px',
+      color: '#ff9fe0',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+
+    const toggleRows = [
+      { key: 'assistMode' as const, label: 'Assist Mode', color: '#7df9ff' },
+      { key: 'reducedEffects' as const, label: 'Reduced Effects', color: '#ffd166' },
+      { key: 'reducedMotion' as const, label: 'Reduced Motion', color: '#ff8fab' },
+      { key: 'showControlHints' as const, label: 'Show Control Hints', color: '#b8f27c' }
+    ];
+
+    const toggleButtons = toggleRows.map((row, index) => {
+      const y = toggleStartY + (index * toggleSpacing);
+      const button = this.add.rectangle(0, y, toggleButtonWidth, toggleButtonHeight, 0x071120, 0.95);
+      button.setStrokeStyle(2, 0x173256);
+      button.setInteractive({ useHandCursor: true });
+
+      const text = this.add.text(0, y, '', {
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        color: row.color,
+      }).setOrigin(0.5);
+
+      return { ...row, button, text };
+    });
+
+    const refreshToggleTexts = () => {
+      toggleButtons.forEach((toggle) => {
+        const enabled = this.accessibility[toggle.key];
+        toggle.text.setText(`${toggle.label}: ${enabled ? 'ON' : 'OFF'}`);
+        toggle.button.setFillStyle(enabled ? 0x10334d : 0x071120, enabled ? 1 : 0.95);
+        toggle.button.setStrokeStyle(2, enabled ? 0x00ffff : 0x173256);
+      });
+    };
+
+    const toggleSetting = (key: keyof AccessibilitySettings) => {
+      this.setAccessibilitySetting(key, !this.accessibility[key]);
+      refreshToggleTexts();
+    };
 
     const startGame = (diff: 'NORMAL' | 'NIGHTMARE' | 'HARD') => {
+      const isFirstRun = !this.accessibility.onboardingSeen;
       this.difficulty = diff;
+      GameEvents.emit('difficulty-changed', this.difficulty);
       container.destroy();
       this.isPaused = false;
 
-      this.showHowToPlay(width, height);
+      if (isFirstRun || this.accessibility.showControlHints) {
+        this.showHowToPlay(width, height, isFirstRun);
+      }
+      if (isFirstRun) {
+        this.setAccessibilitySetting('onboardingSeen', true);
+      }
       this.isGracePeriod = true;
-      this.time.delayedCall(6000, () => {
+      this.time.delayedCall(isFirstRun ? 6500 : 5000, () => {
         this.isGracePeriod = false;
         this.showLevelTitle();
       });
@@ -593,7 +1055,26 @@ export default class MainScene extends Phaser.Scene {
     hardBtn.on('pointerover', () => hardBtn.setFillStyle(0xffaa00, 0.2));
     hardBtn.on('pointerout', () => hardBtn.setFillStyle(0x000000, 1));
 
-    container.add([bg, title, normalBtn, normalText, hardBtn, hardText, nightmareBtn, nightmareText]);
+    toggleButtons.forEach((toggle) => {
+      toggle.button.on('pointerdown', () => toggleSetting(toggle.key));
+      toggle.button.on('pointerover', () => toggle.button.setStrokeStyle(2, 0x00ffff));
+      toggle.button.on('pointerout', refreshToggleTexts);
+    });
+    refreshToggleTexts();
+
+    container.add([
+      bg,
+      title,
+      subtitle,
+      normalBtn,
+      normalText,
+      hardBtn,
+      hardText,
+      nightmareBtn,
+      nightmareText,
+      settingsTitle,
+      ...toggleButtons.flatMap((toggle) => [toggle.button, toggle.text]),
+    ]);
   }
 
   changeWeather() {
@@ -603,6 +1084,7 @@ export default class MainScene extends Phaser.Scene {
   applyWeatherForState() {
     const w = this.sys.canvas.width;
     const h = this.sys.canvas.height;
+    const lowEffects = this.accessibility.reducedEffects;
 
     switch (this.currentEnvState) {
       case 'DAY':
@@ -615,8 +1097,8 @@ export default class MainScene extends Phaser.Scene {
           speedY: { min: 200, max: 400 },
           speedX: -80,
           scale: { start: 0.6, end: 0 },
-          quantity: 1,
-          frequency: 80,
+          quantity: lowEffects ? 0 : 1,
+          frequency: lowEffects ? -1 : 80,
           blendMode: 'ADD'
         });
         this.sunGlow.setAlpha(0);
@@ -641,8 +1123,8 @@ export default class MainScene extends Phaser.Scene {
           speedY: { min: 40, max: 120 },
           speedX: { min: -30, max: 30 },
           scale: { start: 1, end: 0.3 },
-          quantity: 3,
-          frequency: 40,
+          quantity: lowEffects ? 1 : 3,
+          frequency: lowEffects ? 120 : 40,
           blendMode: 'ADD'
         });
         this.sunGlow.setAlpha(0);
@@ -658,8 +1140,8 @@ export default class MainScene extends Phaser.Scene {
           speedY: { min: 30, max: 80 },
           speedX: { min: -20, max: 20 },
           scale: { start: 0.7, end: 0 },
-          quantity: 1,
-          frequency: 100,
+          quantity: lowEffects ? 0 : 1,
+          frequency: lowEffects ? -1 : 100,
           blendMode: 'ADD'
         });
         this.sunGlow.setPosition(60, h * 0.35);
@@ -820,7 +1302,7 @@ export default class MainScene extends Phaser.Scene {
   }
 
   triggerLightning() {
-    if (this.currentEnvState !== 'NIGHT') return;
+    if (this.currentEnvState !== 'NIGHT' || this.accessibility.reducedEffects || this.accessibility.reducedMotion) return;
 
     this.lightningOverlay.setAlpha(0.7);
     this.tweens.add({
@@ -831,45 +1313,57 @@ export default class MainScene extends Phaser.Scene {
     });
   }
 
-  showHowToPlay(width: number, height: number) {
+  showHowToPlay(width: number, height: number, isFirstRun: boolean = false) {
     const container = this.add.container(width / 2, height / 2).setDepth(3000).setScrollFactor(0);
 
-    const bg = this.add.rectangle(0, 0, 500, 300, 0x000000, 0.7);
+    const panelHeight = isFirstRun ? 350 : 250;
+    const bg = this.add.rectangle(0, 0, 560, panelHeight, 0x000000, 0.78);
     bg.setStrokeStyle(2, 0x00ffff);
 
-    const title = this.add.text(0, -110, 'HOW TO PLAY', {
+    const title = this.add.text(0, -(panelHeight / 2) + 36, isFirstRun ? 'FIRST FLIGHT BRIEFING' : 'CONTROL REMINDER', {
       fontFamily: 'monospace',
       fontSize: '32px',
       color: '#ff00ff',
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    const controls = [
-      'WASD / ARROWS : Move Dragon',
-      'LEFT CLICK    : Fireball (Inf)',
-      'RIGHT CLICK   : Missile (Ltd)',
-      'MOBILE: D-Pad + 🔥 / 🚀 Buttons',
-      'Collect Hearts to Heal/Buff HP',
-      'Collect Stars to Upgrade Weapon',
-      'Watch videos to gain points!'
-    ];
+    const controls = isFirstRun
+      ? [
+          'WASD / ARROWS : Move Dragon',
+          'LEFT CLICK    : Fireball (Unlimited)',
+          'RIGHT CLICK   : Missile (Limited)',
+          'MOBILE        : D-Pad + FIRE / MISSILE',
+          'ORANGE ALERT  : Boss heavy attack incoming',
+          this.accessibility.assistMode
+            ? 'ASSIST MODE   : Reduced incoming damage is active'
+            : 'TIP           : Enable Assist Mode on the start screen for a softer run',
+          'Watch videos and clear levels to unlock persistent upgrades!'
+        ]
+      : [
+          'WASD / ARROWS : Move Dragon',
+          'LEFT / RIGHT  : Fireball / Missile',
+          'ORANGE ALERT  : Boss telegraph, dodge first',
+          'Collect stars, hearts, and crates to stay ahead'
+        ];
 
-    const content = this.add.text(0, 20, controls.join('\n'), {
+    const content = this.add.text(0, 24, controls.join('\n'), {
       fontFamily: 'monospace',
-      fontSize: '20px',
+      fontSize: isFirstRun ? '19px' : '18px',
       color: '#00ffff',
       align: 'center',
-      lineSpacing: 10
+      lineSpacing: 8
     }).setOrigin(0.5);
 
     container.add([bg, title, content]);
 
-    // Fade out after 5 seconds
-    this.time.delayedCall(5000, () => {
+    const displayTime = isFirstRun ? 5200 : 2600;
+    const fadeDuration = this.accessibility.reducedMotion ? 220 : 700;
+
+    this.time.delayedCall(displayTime, () => {
       this.tweens.add({
         targets: container,
         alpha: 0,
-        duration: 1000,
+        duration: fadeDuration,
         onComplete: () => container.destroy()
       });
     });
@@ -1007,7 +1501,11 @@ export default class MainScene extends Phaser.Scene {
     if (now - this.lastDamageTime < this.DAMAGE_COOLDOWN) return;
     this.lastDamageTime = now;
 
-    this.health -= amount;
+    const adjustedDamage = this.accessibility.assistMode
+      ? Math.max(1, Math.round(amount * 0.75))
+      : amount;
+
+    this.health -= adjustedDamage;
 
     // Weapon downgrade on hit (HARD/NIGHTMARE floor is 2; NORMAL floor is 1)
     const weaponFloor = (this.difficulty === 'HARD' || this.difficulty === 'NIGHTMARE') ? 2 : 1;
@@ -1023,9 +1521,25 @@ export default class MainScene extends Phaser.Scene {
       this.triggerGameOver();
     }
     GameEvents.emit('health-changed', this.health);
+    GameEvents.emit('weapon-state-changed', {
+      fireballLevel: this.fireballLevel,
+      missileLevel: this.missileLevel,
+    });
 
     this.dragon.setTint(0xff0000);
     this.dragon.setAlpha(0.6);
+    this.damageFlashOverlay.setAlpha(0.2);
+    this.tweens.add({
+      targets: this.damageFlashOverlay,
+      alpha: 0,
+      duration: this.accessibility.reducedMotion ? 160 : 260,
+    });
+    this.emitCombatBurst(this.dragon.x, this.dragon.y, 10);
+
+    if (!this.accessibility.reducedMotion) {
+      this.cameras.main.shake(140, 0.003);
+    }
+
     this.time.delayedCall(this.DAMAGE_COOLDOWN, () => {
       this.dragon.clearTint();
       this.dragon.setAlpha(1);
@@ -1037,6 +1551,7 @@ export default class MainScene extends Phaser.Scene {
     this.isPaused = true;
     this.physics.pause();
     this.dragon.setVelocity(0);
+    this.finalizeRunProgression();
 
     const width = this.sys.canvas.width;
     const height = this.sys.canvas.height;
@@ -1061,6 +1576,7 @@ export default class MainScene extends Phaser.Scene {
   }
 
   fireFireball() {
+    this.lastFireballCastTime = this.time.now;
     this.fireballSfx.play();
 
     const fire = (x: number, y: number, angle: number = 0, isBlue: boolean = false) => {
@@ -1068,8 +1584,12 @@ export default class MainScene extends Phaser.Scene {
       if (fireball) {
         fireball.enableBody(true, x, y, true, true);
         fireball.setTexture('fireball');
-        fireball.setDisplaySize(30, 15);
-        fireball.body?.setSize(20, 10);
+        const visualLevel = Math.min(this.fireballLevel, 7);
+        const sizeScale = 1 + ((visualLevel - 1) * 0.08) + (isBlue ? 0.12 : 0);
+        const projectileWidth = 26 * sizeScale;
+        const projectileHeight = 12 * sizeScale;
+        fireball.setDisplaySize(projectileWidth, projectileHeight);
+        fireball.body?.setSize(projectileWidth * 0.66, projectileHeight * 0.66);
         if (!fireball.body) this.physics.add.existing(fireball);
 
         const vx = Math.cos(angle) * 600;
@@ -1078,16 +1598,29 @@ export default class MainScene extends Phaser.Scene {
         fireball.setAngle(Phaser.Math.RadToDeg(angle));
         fireball.setCollideWorldBounds(false);
         fireball.setDepth(10);
+        fireball.setTint(
+          isBlue
+            ? 0x33ddff
+            : visualLevel >= 6
+              ? 0xffd166
+              : visualLevel >= 4
+                ? 0xff9f43
+                : 0xff6b35,
+        );
+        fireball.setBlendMode(Phaser.BlendModes.ADD);
+        fireball.setData('baseDisplayWidth', projectileWidth);
+        fireball.setData('baseDisplayHeight', projectileHeight);
+        fireball.setData('nextTrail', this.time.now);
 
         if (isBlue) {
-          fireball.setTint(0x00ccff);
           fireball.setData('damage', 20);
         } else {
-          fireball.clearTint();
           fireball.setData('damage', 10);
         }
       }
     };
+
+    this.emitCombatBurst(this.dragon.x + 30, this.dragon.y, 4);
 
     if (this.fireballLevel === 1) {
       fire(this.dragon.x + 20, this.dragon.y);
@@ -1127,6 +1660,7 @@ export default class MainScene extends Phaser.Scene {
 
   fireMissile() {
     if (this.missileAmmo > 0) {
+      this.lastMissileCastTime = this.time.now;
       this.missileAmmo--;
       GameEvents.emit('ammo-changed', this.missileAmmo);
 
@@ -1144,8 +1678,21 @@ export default class MainScene extends Phaser.Scene {
           missile.setData('damage', 30 * this.missileLevel);
           if (!missile.body) this.physics.add.existing(missile);
           missile.setVelocityX(400);
+          missile.setTint(
+            this.missileLevel >= 5
+              ? 0xffd166
+              : this.missileLevel >= 3
+                ? 0xff8c42
+                : 0xffffff,
+          );
+          missile.setBlendMode(Phaser.BlendModes.ADD);
+          missile.setData('baseDisplayWidth', w);
+          missile.setData('baseDisplayHeight', h);
+          missile.setData('nextTrail', this.time.now);
         }
       };
+
+      this.emitCombatBurst(this.dragon.x + 28, this.dragon.y, 6);
 
       if (this.missileLevel >= 5) {
         fireOne(-15);
@@ -1184,6 +1731,11 @@ export default class MainScene extends Phaser.Scene {
 
     enemy.setTint(0xff0000);
     this.time.delayedCall(100, () => enemy.clearTint());
+    this.emitCombatBurst(enemy.x, enemy.y, enemy.getData('isBoss') ? 12 : 5);
+
+    if (enemy.getData('isBoss')) {
+      this.updateBossPhase(enemy);
+    }
 
     if (health <= 0) {
       this.killEnemy(enemy);
@@ -1253,7 +1805,7 @@ export default class MainScene extends Phaser.Scene {
       this.score += 50;
       GameEvents.emit('score-changed', this.score);
     } else {
-      this.health = Math.min(this.maxHealth, this.health + 20);
+      this.health = Math.min(this.maxHealth, this.health + (this.accessibility.assistMode ? 25 : 20));
       GameEvents.emit('health-changed', this.health);
     }
 
@@ -1270,6 +1822,10 @@ export default class MainScene extends Phaser.Scene {
       this.score += 50;
       GameEvents.emit('score-changed', this.score);
     }
+    GameEvents.emit('weapon-state-changed', {
+      fireballLevel: this.fireballLevel,
+      missileLevel: this.missileLevel,
+    });
     // Visual feedback
     this.dragon.setTint(0x00ffff);
     this.time.delayedCall(200, () => this.dragon.clearTint());
@@ -1283,6 +1839,10 @@ export default class MainScene extends Phaser.Scene {
       this.score += 50;
       GameEvents.emit('score-changed', this.score);
     }
+    GameEvents.emit('weapon-state-changed', {
+      fireballLevel: this.fireballLevel,
+      missileLevel: this.missileLevel,
+    });
     // Visual feedback
     this.dragon.setTint(0xff8800);
     this.time.delayedCall(200, () => this.dragon.clearTint());
@@ -1292,7 +1852,19 @@ export default class MainScene extends Phaser.Scene {
     this.killSfx.play();
 
     // Trigger explosion particles
-    this.explosionEmitter.explode(20, enemy.x, enemy.y);
+    const isBoss = Boolean(enemy.getData('isBoss'));
+    this.explosionEmitter.explode(
+      isBoss
+        ? (this.accessibility.reducedEffects ? 18 : 46)
+        : (this.accessibility.reducedEffects ? 8 : 20),
+      enemy.x,
+      enemy.y,
+    );
+    this.emitCombatBurst(enemy.x, enemy.y, isBoss ? 16 : 8);
+
+    if (!this.accessibility.reducedMotion) {
+      this.cameras.main.shake(isBoss ? 180 : 70, isBoss ? 0.004 : 0.0018);
+    }
 
     const points = enemy.getData('points') || 10;
     enemy.disableBody(true, true);
@@ -1300,7 +1872,8 @@ export default class MainScene extends Phaser.Scene {
     GameEvents.emit('score-changed', this.score);
 
     // Boss defeated — reset distance to trigger final checkpoint
-    if (enemy.getData('isBoss')) {
+    if (isBoss) {
+      this.bossesDefeatedThisRun++;
       let activeBosses = 0;
       this.enemies.children.each((e) => {
         const sprite = e as Phaser.Physics.Arcade.Sprite;
@@ -1314,6 +1887,7 @@ export default class MainScene extends Phaser.Scene {
         this.isBossLevel = false;
         // Reset distance traveled so checkpoint spawns soon after boss dies
         this.distanceTraveled = this.checkpointThreshold - 1000;
+        this.showBossWarning('AIRSPACE CLEARED', enemy);
       }
       return;
     }
@@ -1466,6 +2040,8 @@ export default class MainScene extends Phaser.Scene {
         enemy.setData('enemyRole', enemyRole);
         enemy.setData('spawnTime', this.time.now);
         enemy.setData('baseY', y);
+        enemy.setData('baseDisplayWidth', width);
+        enemy.setData('baseDisplayHeight', height);
 
         // Sync collision body to display size
         enemy.body?.setSize(enemy.width, enemy.height);
@@ -1525,6 +2101,10 @@ export default class MainScene extends Phaser.Scene {
   }
 
   spawnSmallDragonBoss(count: number) {
+    if (count > 0) {
+      this.showBossWarning('BOSS SWARM INBOUND');
+    }
+
     for (let i = 0; i < count; i++) {
       const row = i % 4;
       const col = Math.floor(i / 4);
@@ -1539,6 +2119,10 @@ export default class MainScene extends Phaser.Scene {
         boss.setDisplaySize(140, 140);
         boss.setAlpha(1);
         boss.setData('isBoss', true);
+        boss.setData('baseDisplayWidth', 140);
+        boss.setData('baseDisplayHeight', 140);
+        boss.setData('bossPhase', 1);
+        boss.setData('telegraphUntil', 0);
 
         const bossBody = boss.body as Phaser.Physics.Arcade.Body;
         bossBody.setSize(boss.width, boss.height);
@@ -1559,11 +2143,14 @@ export default class MainScene extends Phaser.Scene {
         const vy = Phaser.Math.Between(30, 80);
         boss.setVelocityY(Math.random() < 0.5 ? vy : -vy);
         boss.setData('nextShot', this.time.now + 1000 + (i * 500));
+        boss.setData('nextSpecialAttack', this.time.now + 2200 + (i * 300));
       }
     }
   }
 
   spawnBoss(count: number = 2) {
+    this.showBossWarning('FINAL BOSS: SKYFIRE OVER MANHATTAN');
+
     // Add Statue of Liberty in background as the final goal
     const liberty = this.add.image(this.sys.canvas.width + 400, this.sys.canvas.height - 200, 'statue_of_liberty');
     liberty.setDisplaySize(200, 400);
@@ -1597,6 +2184,10 @@ export default class MainScene extends Phaser.Scene {
         boss.setDisplaySize(200, 200);
         boss.setAlpha(1);
         boss.setData('isBoss', true);
+        boss.setData('baseDisplayWidth', 200);
+        boss.setData('baseDisplayHeight', 200);
+        boss.setData('bossPhase', 1);
+        boss.setData('telegraphUntil', 0);
 
         const bossBody = boss.body as Phaser.Physics.Arcade.Body;
         bossBody.setSize(boss.width, boss.height);
@@ -1618,41 +2209,39 @@ export default class MainScene extends Phaser.Scene {
         const vy = Phaser.Math.Between(30, 80);
         boss.setVelocityY(Math.random() < 0.5 ? vy : -vy);
         boss.setData('nextShot', this.time.now + 1000 + (i * 500));
+        boss.setData('nextSpecialAttack', this.time.now + 1800 + (i * 250));
       }
     }
   }
 
-  spawnEnemyBullet(x: number, y: number, isBoss: boolean = false) {
-    const shoot = (vx: number, vy: number) => {
-      const bullet = this.enemyBullets.get(x, y) as Phaser.Physics.Arcade.Sprite | null;
-      if (bullet) {
-        bullet.enableBody(true, x, y, true, true);
-        bullet.setTexture('enemyBullet');
-        if (!bullet.body) this.physics.add.existing(bullet);
-        bullet.body?.setSize(10, 10);
-        bullet.setVelocity(vx, vy);
+  spawnEnemyBullet(x: number, y: number, isBoss: boolean = false, bossPhase: number = 1) {
+    const underLoad = this.isCombatLoadHigh();
+
+    if (isBoss) {
+      let spreads = bossPhase >= 3
+        ? [-180, -110, -40, 40, 110, 180]
+        : bossPhase === 2
+          ? [-130, -30, 30, 130]
+          : [-100, 0, 100];
+      if (underLoad) {
+        spreads = spreads.filter((_, index) => index % 2 === 0);
       }
-    };
+      const style = bossPhase >= 3 ? 'elite' : 'boss';
+
+      spreads.forEach((velocityY) => {
+        this.fireEnemyShot(x, y, -400 - (bossPhase * 20), velocityY, style);
+      });
+      return;
+    }
 
     if (this.difficulty === 'NIGHTMARE') {
-      if (isBoss) {
-        for (let i = -4; i <= 4; i++) {
-          shoot(-400, i * 40);
-        }
-      } else {
-        shoot(-400, -80);
-        shoot(-400, 0);
-        shoot(-400, 80);
-      }
-    } else {
-      if (isBoss) {
-        shoot(-400, -100);
-        shoot(-400, 0);
-        shoot(-400, 100);
-      } else {
-        shoot(-400, 0);
-      }
+      (underLoad ? [0] : [-80, 0, 80]).forEach((velocityY) => {
+        this.fireEnemyShot(x, y, -400, velocityY, 'normal');
+      });
+      return;
     }
+
+    this.fireEnemyShot(x, y, -400, 0, 'normal');
   }
 
   spawnCheckpoint() {
@@ -1765,12 +2354,12 @@ export default class MainScene extends Phaser.Scene {
     }
 
     // Drifting Clouds
-    if (Phaser.Math.Between(0, 500) === 0) {
+    if (Phaser.Math.Between(0, this.accessibility.reducedMotion ? 900 : 500) === 0) {
       this.spawnCloud();
     }
     this.cloudsGroup.children.each((c) => {
       const cloud = c as Phaser.GameObjects.Image;
-      cloud.x -= 0.5;
+      cloud.x -= this.accessibility.reducedMotion ? 0.25 : 0.5;
       if (cloud.x < -200) {
         cloud.destroy();
       }
@@ -1849,6 +2438,8 @@ export default class MainScene extends Phaser.Scene {
       this.dragon.setVelocityY(speed);
     }
 
+    this.animateDragon(time);
+
     if (time > this.lastEnemySpawn && !this.isBossLevel && this.currentLevel < this.getMaxLevel() && !this.isGracePeriod
         && this.enemies.countActive() < 28) {
         this.spawnEnemy();
@@ -1866,9 +2457,19 @@ export default class MainScene extends Phaser.Scene {
         if (sprite.active) {
             const isBoss = sprite.getData('isBoss');
             const isDragonBoss = sprite.texture.key === 'dragon-boss';
+            const bossPhase = isBoss ? this.updateBossPhase(sprite) : 1;
+            const telegraphUntil = (sprite.getData('telegraphUntil') as number | undefined) ?? 0;
             const w = this.sys.canvas.width;
             const h = this.sys.canvas.height;
             const margin = 30;
+
+            if (isBoss && telegraphUntil === 0 && time > ((sprite.getData('nextSpecialAttack') as number | undefined) ?? Infinity)) {
+              this.telegraphBossAttack(sprite, time, bossPhase);
+            }
+
+            if (isBoss && telegraphUntil > 0 && time > telegraphUntil) {
+              this.executeBossSpecialAttack(sprite, bossPhase);
+            }
 
             if (isBoss) {
               // Clamp boss to visible area horizontally
@@ -1876,12 +2477,12 @@ export default class MainScene extends Phaser.Scene {
               const maxX = w * 0.85;
               if (sprite.x <= minX) {
                 sprite.x = minX;
-                sprite.setVelocityX(0);
+                sprite.setVelocityX(telegraphUntil > time ? -20 : 0);
               } else if (sprite.x >= maxX) {
                 sprite.x = maxX;
                 sprite.setVelocityX(-100);
               } else if (sprite.x < maxX) {
-                sprite.setVelocityX(0);
+                sprite.setVelocityX(telegraphUntil > time ? -20 : 0);
               }
             } else {
               // Normal enemies bouncing off horizontal edges
@@ -1941,17 +2542,21 @@ export default class MainScene extends Phaser.Scene {
               // Snakes march steadily — bright green by design, no extra tint needed
             }
 
+            this.animateActor(sprite, time);
+
             // Shooting logic
             if (sprite.x < w && sprite.x > 0) {
                 const nextShot = sprite.getData('nextShot');
-                if (time > nextShot) {
+                if (time > nextShot && (!isBoss || telegraphUntil === 0)) {
                     // Swarm enemies don't shoot; armored enemies shoot slow
                     if (enemyRole !== 'swarm') {
-                      this.spawnEnemyBullet(sprite.x, sprite.y, isBoss || isDragonBoss);
+                      this.spawnEnemyBullet(sprite.x, sprite.y, isBoss || isDragonBoss, bossPhase);
                     }
                     let shotDelay: number;
-                    if (isBoss || isDragonBoss) {
-                      shotDelay = 1000;
+                    if (isBoss) {
+                      shotDelay = bossPhase === 3 ? 650 : bossPhase === 2 ? 820 : 1000;
+                    } else if (isDragonBoss) {
+                      shotDelay = 1200;
                     } else if (enemyRole === 'ranged') {
                       shotDelay = Phaser.Math.Between(800, 1800);
                     } else if (enemyRole === 'armored') {
@@ -1965,6 +2570,9 @@ export default class MainScene extends Phaser.Scene {
         }
         return true;
     });
+
+      this.animateProjectiles(time);
+
     // Cleanups
     const cleanOffscreen = (group: Phaser.Physics.Arcade.Group, boundary: number, checkRight: boolean = false) => {
       group.children.each((item) => {

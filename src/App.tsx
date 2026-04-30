@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import GameCanvas from './components/GameCanvas'
 import UIOverlay from './components/UIOverlay'
 import MobileControls from './components/MobileControls'
@@ -7,6 +7,7 @@ import VideoModal from './components/VideoModal'
 import ResumeScreen from './components/ResumeScreen'
 import BackgroundMusicPlayer from './components/BackgroundMusicPlayer'
 import { GameEvents } from './game/GameEvents'
+import { loadGameProfile, type GameProfile } from './game/gameProfile'
 
 interface HighScore {
   score: number;
@@ -18,6 +19,8 @@ export default function App() {
   const [isGameOver, setIsGameOver] = useState(false)
   const [score, setScore] = useState(0)
   const [highScores, setHighScores] = useState<HighScore[]>([])
+  const [profile, setProfile] = useState<GameProfile>(() => loadGameProfile())
+  const scoreRef = useRef(0)
 
   useEffect(() => {
     // Load high scores from localStorage
@@ -25,6 +28,7 @@ export default function App() {
     if (savedScores) {
       setHighScores(JSON.parse(savedScores))
     }
+    setProfile(loadGameProfile())
 
     const handleShowVideo = (id: string) => {
       // Delay showing the video for 3 seconds to allow BGM to fade out
@@ -38,7 +42,7 @@ export default function App() {
       // Save score when game ends
       setHighScores(prevScores => {
         const newScore: HighScore = {
-          score: score,
+          score: scoreRef.current,
           date: new Date().toLocaleDateString()
         }
         const updatedScores = [...prevScores, newScore]
@@ -50,18 +54,27 @@ export default function App() {
       })
     }
 
-    const handleScoreChanged = (newScore: number) => setScore(newScore)
+    const handleScoreChanged = (newScore: number) => {
+      scoreRef.current = newScore
+      setScore(newScore)
+    }
+
+    const handleProfileChanged = (nextProfile: GameProfile) => {
+      setProfile(nextProfile)
+    }
 
     GameEvents.on('show-video', handleShowVideo)
     GameEvents.on('game-over', handleGameOver)
     GameEvents.on('score-changed', handleScoreChanged)
+    GameEvents.on('profile-changed', handleProfileChanged)
 
     return () => {
       GameEvents.off('show-video', handleShowVideo)
       GameEvents.off('game-over', handleGameOver)
       GameEvents.off('score-changed', handleScoreChanged)
+      GameEvents.off('profile-changed', handleProfileChanged)
     }
-  }, [score]) // Re-bind effect when score changes to capture latest score in handleGameOver closure
+  }, [])
 
   const handleVideoComplete = (watchedDuration: number) => {
     setVideoId(null)
@@ -74,6 +87,7 @@ export default function App() {
   const handleRestart = () => {
     setIsGameOver(false)
     setScore(0)
+    scoreRef.current = 0
     // Small delay to ensure the DOM is updated before telling Phaser to restart
     setTimeout(() => {
       GameEvents.emit('restart-game')
@@ -83,11 +97,11 @@ export default function App() {
   return (
     <div className="w-full h-screen relative bg-[#09111d] overflow-hidden">
       {isGameOver ? (
-        <ResumeScreen score={score} onRestart={handleRestart} highScores={highScores} />
+        <ResumeScreen score={score} onRestart={handleRestart} highScores={highScores} profile={profile} />
       ) : (
         <>
           <GameCanvas />
-          <UIOverlay />
+          <UIOverlay profile={profile} />
           <MobileControls />
           <FullscreenButton />
           {videoId && <VideoModal videoId={videoId} onComplete={handleVideoComplete} />}

@@ -70,6 +70,22 @@ Then open the local URL shown by Vite, usually `http://localhost:5173`.
 
 If port `5173` is already in use, Vite automatically selects another available port.
 
+To test a specific progression curve, copy [.env.example](./.env.example) to `.env.local` and set `VITE_PROGRESSION_PRESET` to `casual`, `returning-player`, or `arcade`.
+
+You can also override the preset in the browser during development:
+
+```js
+localStorage.setItem('dragon-game-progression-preset-override', 'casual')
+location.reload()
+```
+
+Clear that override to fall back to the env value or default preset:
+
+```js
+localStorage.removeItem('dragon-game-progression-preset-override')
+location.reload()
+```
+
 ## Available Scripts
 
 ```bash
@@ -127,6 +143,7 @@ flowchart TD
 - The main gameplay loop lives in `src/game/scenes/MainScene.ts`
 - React components in `src/components/` handle overlays, video playback, and resume screens
 - Vite is configured to build both the game entry page and `README.html`
+- In dev mode, the HUD progress panel shows the active progression preset for quick verification
 
 ## Contributing
 

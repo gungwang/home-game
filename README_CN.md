@@ -70,6 +70,22 @@ npm run dev
 
 如果 `5173` 端口已被占用，Vite 会自动切换到其他可用端口。
 
+如果要测试不同的成长曲线，可以把 [.env.example](./.env.example) 复制为 `.env.local`，然后把 `VITE_PROGRESSION_PRESET` 设置为 `casual`、`returning-player` 或 `arcade`。
+
+开发时也可以直接在浏览器里覆盖当前预设：
+
+```js
+localStorage.setItem('dragon-game-progression-preset-override', 'casual')
+location.reload()
+```
+
+如果想恢复为环境变量或默认预设，清除这个覆盖值即可：
+
+```js
+localStorage.removeItem('dragon-game-progression-preset-override')
+location.reload()
+```
+
 ## 可用脚本
 
 ```bash
@@ -127,6 +143,7 @@ flowchart TD
 - 主要游戏逻辑位于 `src/game/scenes/MainScene.ts`
 - `src/components/` 中的 React 组件负责 UI、视频弹窗和简历界面
 - Vite 同时构建游戏入口页面和 `README.html`
+- 在开发模式下，HUD 右上角的进度面板会显示当前成长预设，方便确认配置是否生效
 
 ## 参与贡献
 
