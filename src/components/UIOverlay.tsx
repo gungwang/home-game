@@ -90,13 +90,13 @@ export default function UIOverlay({ profile }: UIOverlayProps) {
   return (
     <div className="absolute inset-0 pointer-events-none text-white font-mono">
       {bossWarning && (
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 rounded border border-amber-400/70 bg-black/70 px-4 py-2 text-center text-xs sm:text-sm md:text-lg uppercase tracking-[0.3em] text-amber-300 shadow-[0_0_24px_rgba(251,191,36,0.25)]">
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 rounded border border-amber-400/70 bg-transparent px-4 py-2 text-center text-xs sm:text-sm md:text-lg uppercase tracking-[0.3em] text-amber-300 shadow-[0_0_24px_rgba(251,191,36,0.25)]">
           {bossWarning}
         </div>
       )}
 
       <div
-        className="absolute top-2 left-2 min-w-[170px] rounded-lg border border-cyan-500/20 bg-[#06131fe6] px-3 py-2 text-white shadow-[0_0_14px_rgba(6,182,212,0.10)] backdrop-blur-[2px]"
+        className="absolute top-2 left-2 min-w-[170px] rounded-lg border border-cyan-500/20 bg-transparent px-3 py-2 text-white shadow-none"
         style={{ fontSize: 'clamp(9px, 1.35vw, 16px)', lineHeight: 1.22 }}
       >
         <div className="mb-2 flex items-center justify-between gap-3 border-b border-cyan-500/10 pb-1 text-[9px] uppercase tracking-[0.22em] text-cyan-200/75 sm:text-[10px]">
@@ -132,7 +132,7 @@ export default function UIOverlay({ profile }: UIOverlayProps) {
       </div>
 
       {showProgressPanel ? (
-        <div className="pointer-events-auto absolute bottom-2 left-2 w-[min(28vw,220px)] rounded-lg border border-pink-500/25 bg-[#140a17d9] px-3 py-2 text-[10px] shadow-[0_0_16px_rgba(236,72,153,0.12)] sm:text-xs">
+        <div className="pointer-events-auto absolute bottom-2 left-2 w-[min(28vw,220px)] rounded-lg border border-pink-500/25 bg-transparent px-3 py-2 text-[10px] shadow-none sm:text-xs">
           <div className="mb-2 flex items-start justify-between gap-2 uppercase tracking-[0.22em] text-pink-200">
             <div>
               <div>Progress</div>
@@ -141,7 +141,7 @@ export default function UIOverlay({ profile }: UIOverlayProps) {
             <button
               type="button"
               onClick={() => setShowProgressPanel(false)}
-              className="rounded border border-pink-400/30 px-2 py-1 text-[10px] text-pink-200 transition hover:bg-pink-500/10"
+              className="rounded border border-pink-400/30 bg-transparent px-2 py-1 text-[10px] text-pink-200 transition hover:bg-pink-500/10"
               aria-label="Close progress panel"
             >
               x
@@ -186,20 +186,20 @@ export default function UIOverlay({ profile }: UIOverlayProps) {
         <button
           type="button"
           onClick={() => setShowProgressPanel(true)}
-          className="pointer-events-auto absolute bottom-2 left-2 rounded border border-pink-500/30 bg-[#140a17d9] px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-pink-200 transition hover:bg-pink-500/10 sm:text-xs"
+          className="pointer-events-auto absolute bottom-2 left-2 rounded border border-pink-500/30 bg-transparent px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-pink-200 transition hover:bg-pink-500/10 sm:text-xs"
         >
           Progress
         </button>
       )}
 
       {profile.settings.showControlHints && (showControlsPanel ? (
-        <div className="pointer-events-auto absolute bottom-2 right-2 max-w-[min(92vw,520px)] rounded border border-cyan-500/25 bg-black/65 px-3 py-2 text-[10px] text-cyan-100 sm:text-xs md:text-sm">
+        <div className="pointer-events-auto absolute bottom-2 right-2 max-w-[min(92vw,520px)] rounded border border-cyan-500/25 bg-transparent px-3 py-2 text-[10px] text-cyan-100 sm:text-xs md:text-sm">
           <div className="flex items-start justify-between gap-3">
             <div className="uppercase tracking-[0.25em] text-cyan-300">Controls</div>
             <button
               type="button"
               onClick={() => setShowControlsPanel(false)}
-              className="rounded border border-cyan-400/30 px-2 py-1 text-[10px] text-cyan-200 transition hover:bg-cyan-500/10"
+              className="rounded border border-cyan-400/30 bg-transparent px-2 py-1 text-[10px] text-cyan-200 transition hover:bg-cyan-500/10"
               aria-label="Close controls panel"
             >
               x
@@ -212,7 +212,7 @@ export default function UIOverlay({ profile }: UIOverlayProps) {
         <button
           type="button"
           onClick={() => setShowControlsPanel(true)}
-          className="pointer-events-auto absolute bottom-2 right-2 rounded border border-cyan-500/25 bg-black/65 px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-cyan-200 transition hover:bg-cyan-500/10 sm:text-xs"
+          className="pointer-events-auto absolute bottom-2 right-2 rounded border border-cyan-500/25 bg-transparent px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-cyan-200 transition hover:bg-cyan-500/10 sm:text-xs"
         >
           Controls
         </button>
