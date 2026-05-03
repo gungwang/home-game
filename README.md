@@ -17,10 +17,14 @@ You pilot a dragon across Manhattan, fight mutated farm-animal monsters on rooft
 
 ## Screenshots
 ### Mobile Friendly & Mobile Control
-![Gameplay screenshot 1](./image-4.png)
-![Gameplay screenshot 1](./image-5.png)
+![Gameplay screenshot 1](./image.png)
 ![Gameplay screenshot 2](./image-2.png)
-![Gameplay screenshot 4](./image.png)
+![Gameplay screenshot 3](./image-1.png)
+![Gameplay screenshot 4](./image-3.png)
+![Gameplay screenshot 5](./image-4.png)
+![Gameplay screenshot 6](./image-5.png)
+
+
 
 ## Gameplay Video
 
