@@ -1,5 +1,7 @@
 # 飞龙大战纽约
 
+![游戏截图 2](./image-2.png)
+
 [English](./README.md)
 
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
@@ -18,7 +20,6 @@
 ## 游戏截图
 
 ![游戏截图 1](./image.png)
-![游戏截图 2](./image-2.png)
 ![游戏截图 3](./image-1.png)
 ![游戏截图 4](./image-3.png)
 ![游戏截图 5](./image-4.png)

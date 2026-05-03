@@ -1,5 +1,7 @@
 # Dragon vs New York
 
+![Gameplay screenshot 2](./image-2.png)
+
 [中文说明](./README_CN.md)
 
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
@@ -18,7 +20,6 @@ You pilot a dragon across Manhattan, fight mutated farm-animal monsters on rooft
 ## Screenshots
 ### Mobile Friendly & Mobile Control
 ![Gameplay screenshot 1](./image.png)
-![Gameplay screenshot 2](./image-2.png)
 ![Gameplay screenshot 3](./image-1.png)
 ![Gameplay screenshot 4](./image-3.png)
 ![Gameplay screenshot 5](./image-4.png)
