@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { GameEvents } from '../GameEvents';
-import { YOUTUBE_VIDEOS } from '../youtubeVideos';
+import { createYouTubeVideoPicker, YOUTUBE_VIDEOS } from '../youtubeVideos';
 import {
   applyRunSummaryToProfile,
   getDefaultGameProfile,
@@ -132,9 +132,12 @@ export default class MainScene extends Phaser.Scene {
   private getMaxLevel(): number {
     return this.difficulty === 'HARD' ? 15 : 20;
   }
+  private isShieldEnabledForCurrentLevel(): boolean {
+    return this.difficulty !== 'NORMAL' || this.currentLevel === this.getMaxLevel();
+  }
   private isGracePeriod: boolean = false;
   private isPaused: boolean = false;
-  private readonly youtubeVideos = YOUTUBE_VIDEOS;
+  private readonly getNextCheckpointVideo = createYouTubeVideoPicker(YOUTUBE_VIDEOS);
 
   private videosWatched: number = 0;
   private bgmStarted: boolean = false;
@@ -1397,7 +1400,7 @@ export default class MainScene extends Phaser.Scene {
     });
   }
 
-  /** Returns duration (ms) for shield at current level in HARD/NIGHTMARE modes */
+  /** Returns duration (ms) for shield at the current level when shields are enabled. */
   private getShieldDuration(): number {
     const maxLvl = this.getMaxLevel();
     const lv = this.currentLevel;
@@ -1407,7 +1410,7 @@ export default class MainScene extends Phaser.Scene {
   }
 
   activateShield() {
-    if (this.difficulty === 'NORMAL') return;
+    if (!this.isShieldEnabledForCurrentLevel()) return;
     if (this.shieldCount <= 0) return;
     if (this.isShieldActive) return; // already shielded
 
@@ -1883,6 +1886,10 @@ export default class MainScene extends Phaser.Scene {
         return true;
       });
 
+      if (this.difficulty === 'NORMAL' && this.currentLevel === this.getMaxLevel() && activeBosses > 0) {
+        this.spawnShieldPack(enemy.x, enemy.y);
+      }
+
       if (activeBosses === 0) {
         this.isBossLevel = false;
         // Reset distance traveled so checkpoint spawns soon after boss dies
@@ -1901,8 +1908,8 @@ export default class MainScene extends Phaser.Scene {
       this.spawnPowerUp(enemy.x, enemy.y, 'health_pack');
     } else if (rand < 0.30) {
       this.spawnAmmoCrate(enemy.x, enemy.y);
-    } else if (rand < 0.32 && (this.difficulty === 'HARD' || this.difficulty === 'NIGHTMARE')) {
-      // Shield drop: ~2% chance, only in HARD/NIGHTMARE
+    } else if (rand < 0.32 && this.isShieldEnabledForCurrentLevel()) {
+      // Shield drop: ~2% chance whenever shields are enabled for the current level.
       this.spawnShieldPack(enemy.x, enemy.y);
     }
   }
@@ -2395,7 +2402,7 @@ export default class MainScene extends Phaser.Scene {
         this.isPaused = true;
         this.dragon.setVelocity(0);
 
-        const randomVideoId = this.youtubeVideos[Phaser.Math.Between(0, this.youtubeVideos.length - 1)];
+        const randomVideoId = this.getNextCheckpointVideo();
         this.scene.pause();
         GameEvents.emit('bgm-stop');
         GameEvents.emit('show-video', randomVideoId);

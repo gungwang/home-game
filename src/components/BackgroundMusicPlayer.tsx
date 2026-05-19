@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import YouTube, { YouTubeProps } from 'react-youtube';
 import { GameEvents } from '../game/GameEvents';
-import { YOUTUBE_VIDEOS } from '../game/youtubeVideos';
+import { createYouTubeVideoPicker, YOUTUBE_VIDEOS } from '../game/youtubeVideos';
 const TARGET_VOLUME = 15;
 const FADE_DURATION = 3000; // 3 seconds
 
@@ -9,10 +9,11 @@ export default function BackgroundMusicPlayer() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const playerRef = useRef<any>(null);
   const fadeIntervalRef = useRef<number | null>(null);
+  const nextVideoRef = useRef(createYouTubeVideoPicker(YOUTUBE_VIDEOS));
   const [currentVideo, setCurrentVideo] = useState<string | null>(null);
   const [shouldPlay, setShouldPlay] = useState(false);
 
-  const getRandomVideo = () => YOUTUBE_VIDEOS[Math.floor(Math.random() * YOUTUBE_VIDEOS.length)];
+  const getRandomVideo = () => nextVideoRef.current();
 
   const fadeVolume = (targetVolume: number, onComplete?: () => void) => {
     if (!playerRef.current) return;
